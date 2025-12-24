@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { MathUtils } from 'three';
 import * as random from 'maath/random';
 
-import { CONFIG, type SceneState } from './config';
+import { CONFIG, PORTRAIT_PHOTO_INDEX, type SceneState } from './config';
 
 // --- Shader Material (Foliage) ---
 const FoliageMaterial = shaderMaterial(
@@ -116,8 +116,13 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
   const count = CONFIG.counts.ornaments;
   const groupRef = useRef<THREE.Group>(null);
 
-  const borderGeometry = useMemo(() => new THREE.PlaneGeometry(1.2, 1.5), []);
-  const photoGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  // 正方形照片几何体
+  const squarePhotoGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
+  const squareBorderGeometry = useMemo(() => new THREE.PlaneGeometry(1.2, 1.5), []);
+
+  // 竖幅照片几何体 (6.jpg aspect ratio ~3:4)
+  const portraitPhotoGeometry = useMemo(() => new THREE.PlaneGeometry(0.75, 1), []);
+  const portraitBorderGeometry = useMemo(() => new THREE.PlaneGeometry(0.95, 1.5), []);
 
   const data = useMemo(() => {
     return new Array(count).fill(0).map((_, i) => {
@@ -154,12 +159,16 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
         Math.random() * Math.PI,
       );
 
+      const textureIndex = i % textures.length;
+      const isPortrait = textureIndex === PORTRAIT_PHOTO_INDEX;
+
       return {
         chaosPos,
         targetPos,
         scale: baseScale,
         weight,
-        textureIndex: i % textures.length,
+        textureIndex,
+        isPortrait,
         borderColor,
         currentPos: chaosPos.clone(),
         chaosRotation,
@@ -206,58 +215,63 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
 
   return (
     <group ref={groupRef}>
-      {data.map((obj, i) => (
-        <group
-          key={i}
-          scale={[obj.scale, obj.scale, obj.scale]}
-          rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
-        >
-          {/* 正面 */}
-          <group position={[0, 0, 0.015]}>
-            <mesh geometry={photoGeometry}>
-              <meshStandardMaterial
-                map={textures[obj.textureIndex]}
-                roughness={0.5}
-                metalness={0}
-                emissive={CONFIG.colors.white}
-                emissiveMap={textures[obj.textureIndex]}
-                emissiveIntensity={1.0}
-                side={THREE.FrontSide}
-              />
-            </mesh>
-            <mesh geometry={borderGeometry} position={[0, -0.15, -0.01]}>
-              <meshStandardMaterial
-                color={obj.borderColor}
-                roughness={0.9}
-                metalness={0}
-                side={THREE.FrontSide}
-              />
-            </mesh>
+      {data.map((obj, i) => {
+        const photoGeo = obj.isPortrait ? portraitPhotoGeometry : squarePhotoGeometry;
+        const borderGeo = obj.isPortrait ? portraitBorderGeometry : squareBorderGeometry;
+
+        return (
+          <group
+            key={i}
+            scale={[obj.scale, obj.scale, obj.scale]}
+            rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
+          >
+            {/* 正面 */}
+            <group position={[0, 0, 0.015]}>
+              <mesh geometry={photoGeo}>
+                <meshStandardMaterial
+                  map={textures[obj.textureIndex]}
+                  roughness={0.5}
+                  metalness={0}
+                  emissive={CONFIG.colors.white}
+                  emissiveMap={textures[obj.textureIndex]}
+                  emissiveIntensity={1.0}
+                  side={THREE.FrontSide}
+                />
+              </mesh>
+              <mesh geometry={borderGeo} position={[0, -0.15, -0.01]}>
+                <meshStandardMaterial
+                  color={obj.borderColor}
+                  roughness={0.9}
+                  metalness={0}
+                  side={THREE.FrontSide}
+                />
+              </mesh>
+            </group>
+            {/* 背面 */}
+            <group position={[0, 0, -0.015]} rotation={[0, Math.PI, 0]}>
+              <mesh geometry={photoGeo}>
+                <meshStandardMaterial
+                  map={textures[obj.textureIndex]}
+                  roughness={0.5}
+                  metalness={0}
+                  emissive={CONFIG.colors.white}
+                  emissiveMap={textures[obj.textureIndex]}
+                  emissiveIntensity={1.0}
+                  side={THREE.FrontSide}
+                />
+              </mesh>
+              <mesh geometry={borderGeo} position={[0, -0.15, -0.01]}>
+                <meshStandardMaterial
+                  color={obj.borderColor}
+                  roughness={0.9}
+                  metalness={0}
+                  side={THREE.FrontSide}
+                />
+              </mesh>
+            </group>
           </group>
-          {/* 背面 */}
-          <group position={[0, 0, -0.015]} rotation={[0, Math.PI, 0]}>
-            <mesh geometry={photoGeometry}>
-              <meshStandardMaterial
-                map={textures[obj.textureIndex]}
-                roughness={0.5}
-                metalness={0}
-                emissive={CONFIG.colors.white}
-                emissiveMap={textures[obj.textureIndex]}
-                emissiveIntensity={1.0}
-                side={THREE.FrontSide}
-              />
-            </mesh>
-            <mesh geometry={borderGeometry} position={[0, -0.15, -0.01]}>
-              <meshStandardMaterial
-                color={obj.borderColor}
-                roughness={0.9}
-                metalness={0}
-                side={THREE.FrontSide}
-              />
-            </mesh>
-          </group>
-        </group>
-      ))}
+        );
+      })}
     </group>
   );
 };

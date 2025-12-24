@@ -1,11 +1,13 @@
 export type SceneState = 'CHAOS' | 'FORMED';
 
-// --- 动态生成照片列表 (top.jpg + 1.jpg ~ 31.jpg) ---
-export const TOTAL_NUMBERED_PHOTOS = 31;
-export const bodyPhotoPaths = [
-  '/photos/top.jpg',
-  ...Array.from({ length: TOTAL_NUMBERED_PHOTOS }, (_, i) => `/photos/${i + 1}.jpg`),
-];
+// --- 动态生成照片列表 (1.jpg ~ 6.jpg) ---
+export const TOTAL_NUMBERED_PHOTOS = 6;
+// 6.jpg 是竖幅照片，其他都是正方形
+export const PORTRAIT_PHOTO_INDEX = 5; // 对应 6.jpg (0-indexed)
+export const bodyPhotoPaths = Array.from(
+  { length: TOTAL_NUMBERED_PHOTOS },
+  (_, i) => `/photos/${i + 1}.jpg`
+);
 
 // --- 视觉配置 ---
 export const CONFIG = {
@@ -24,7 +26,7 @@ export const CONFIG = {
   },
   counts: {
     foliage: 15000,
-    ornaments: 300,
+    ornaments: 12, // 6张照片 × 2个 = 12个装饰品
     elements: 200,
     lights: 400,
   },
