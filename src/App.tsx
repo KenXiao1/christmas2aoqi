@@ -1,7 +1,6 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
-import * as THREE from 'three';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 
-import { type SceneState } from './config';
+import { type SceneState, TOTAL_NUMBERED_PHOTOS } from './config';
 
 const TreeCanvas = lazy(() => import('./TreeCanvas'));
 const GestureController = lazy(() => import('./GestureController'));
@@ -18,11 +17,14 @@ export default function GrandTreeApp() {
   const [showScene, setShowScene] = useState(false);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
 
-  // 新增：聚焦相关状态
-  const [focusedPhotoIndex, setFocusedPhotoIndex] = useState<number>(-1);
-  const [focusedPhotoPosition, setFocusedPhotoPosition] = useState<THREE.Vector3 | null>(null);
+  // 聚焦相关状态 - 使用 textureIndex (0-5) 而非 ornamentIndex (0-11)
+  const [focusedTextureIndex, setFocusedTextureIndex] = useState<number>(-1);
+  const [startTextureIndex, setStartTextureIndex] = useState<number>(-1); // 循环起点
   const [previousState, setPreviousState] = useState<'CHAOS' | 'FORMED'>('FORMED');
   const [isMobile, setIsMobile] = useState(false);
+
+  // 滑动手势相关
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // 移动端检测
   useEffect(() => {
@@ -38,11 +40,16 @@ export default function GrandTreeApp() {
   }, []);
 
   // 进入聚焦模式
-  const enterFocusMode = useCallback((photoIndex: number, position: THREE.Vector3) => {
-    if (sceneState === 'FOCUS') return;
+  const enterFocusMode = useCallback((textureIndex: number) => {
+    if (sceneState === 'FOCUS') {
+      // 已在 FOCUS 模式，直接切换到新照片
+      setFocusedTextureIndex(textureIndex);
+      setStartTextureIndex(textureIndex);
+      return;
+    }
     setPreviousState(sceneState as 'CHAOS' | 'FORMED');
-    setFocusedPhotoIndex(photoIndex);
-    setFocusedPhotoPosition(position);
+    setFocusedTextureIndex(textureIndex);
+    setStartTextureIndex(textureIndex);
     setSceneState('FOCUS');
     setRotationSpeed(0);
   }, [sceneState]);
@@ -51,19 +58,58 @@ export default function GrandTreeApp() {
   const exitFocusMode = useCallback(() => {
     if (sceneState !== 'FOCUS') return;
     setSceneState(previousState);
-    setFocusedPhotoIndex(-1);
-    setFocusedPhotoPosition(null);
+    setFocusedTextureIndex(-1);
+    setStartTextureIndex(-1);
   }, [sceneState, previousState]);
 
-  // 手势回调 - FOCUS 模式下特殊处理
-  const handleGesture = useCallback((gesture: SceneState) => {
-    if (sceneState === 'FOCUS') {
-      // FOCUS 模式下：Closed_Fist (FORMED) 退出聚焦，忽略 Open_Palm
-      if (gesture === 'FORMED') exitFocusMode();
+  // 下一张照片
+  const nextPhoto = useCallback(() => {
+    if (sceneState !== 'FOCUS' || focusedTextureIndex === -1) return;
+    const next = (focusedTextureIndex + 1) % TOTAL_NUMBERED_PHOTOS;
+    // 循环回到起点时退出
+    if (next === startTextureIndex) {
+      exitFocusMode();
       return;
     }
-    setSceneState(gesture);
-  }, [sceneState, exitFocusMode]);
+    setFocusedTextureIndex(next);
+  }, [sceneState, focusedTextureIndex, startTextureIndex, exitFocusMode]);
+
+  // 上一张照片
+  const prevPhoto = useCallback(() => {
+    if (sceneState !== 'FOCUS' || focusedTextureIndex === -1) return;
+    const prev = (focusedTextureIndex - 1 + TOTAL_NUMBERED_PHOTOS) % TOTAL_NUMBERED_PHOTOS;
+    // 循环回到起点时退出
+    if (prev === startTextureIndex) {
+      exitFocusMode();
+      return;
+    }
+    setFocusedTextureIndex(prev);
+  }, [sceneState, focusedTextureIndex, startTextureIndex, exitFocusMode]);
+
+  // 手势回调 - 支持更多手势
+  type GestureType = SceneState | 'NEXT_PHOTO' | 'PREV_PHOTO' | 'ENTER_FOCUS';
+  const handleGesture = useCallback((gesture: GestureType, nearestTextureIndex?: number) => {
+    if (gesture === 'ENTER_FOCUS') {
+      // ☝️ Pointing_Up 进入聚焦
+      if (sceneState !== 'FOCUS' && nearestTextureIndex !== undefined && nearestTextureIndex >= 0) {
+        enterFocusMode(nearestTextureIndex);
+      }
+      return;
+    }
+
+    if (sceneState === 'FOCUS') {
+      // FOCUS 模式下的手势处理
+      if (gesture === 'FORMED') exitFocusMode(); // 👊 握拳退出
+      if (gesture === 'NEXT_PHOTO') nextPhoto(); // 👎 下一张
+      if (gesture === 'PREV_PHOTO') prevPhoto(); // 👍 上一张
+      return;
+    }
+
+    // 非 FOCUS 模式
+    if (gesture === 'CHAOS' || gesture === 'FORMED') {
+      setSceneState(gesture);
+    }
+  }, [sceneState, enterFocusMode, exitFocusMode, nextPhoto, prevPhoto]);
 
   // 手势移动回调 - FOCUS 模式下忽略
   const handleMove = useCallback((speed: number) => {
@@ -77,6 +123,57 @@ export default function GrandTreeApp() {
   const effectiveRotationSpeed = sceneState === 'FOCUS'
     ? 0
     : (gestureEnabled && isUserInteracting ? rotationSpeed : AUTO_ROTATION_SPEED);
+
+  // 键盘事件处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (sceneState !== 'FOCUS') return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextPhoto();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevPhoto();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        exitFocusMode();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sceneState, nextPhoto, prevPhoto, exitFocusMode]);
+
+  // 触屏滑动手势
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (sceneState !== 'FOCUS') return;
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, [sceneState]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (sceneState !== 'FOCUS' || !touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
+    const SWIPE_THRESHOLD = 50;
+
+    if (absDeltaY > absDeltaX && deltaY > SWIPE_THRESHOLD) {
+      // 下滑退出
+      exitFocusMode();
+    } else if (absDeltaX > absDeltaY && absDeltaX > SWIPE_THRESHOLD) {
+      if (deltaX < 0) {
+        // 左滑 → 下一张
+        nextPhoto();
+      } else {
+        // 右滑 → 上一张
+        prevPhoto();
+      }
+    }
+    touchStartRef.current = null;
+  }, [sceneState, nextPhoto, prevPhoto, exitFocusMode]);
 
   useEffect(() => {
     const enable = () => setShowScene(true);
@@ -114,6 +211,8 @@ export default function GrandTreeApp() {
         position: 'relative',
         overflow: 'hidden',
       }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <div
         style={{
@@ -130,8 +229,7 @@ export default function GrandTreeApp() {
             <TreeCanvas
               sceneState={sceneState}
               rotationSpeed={effectiveRotationSpeed}
-              focusedPhotoIndex={focusedPhotoIndex}
-              focusedPhotoPosition={focusedPhotoPosition}
+              focusedTextureIndex={focusedTextureIndex}
               onPhotoClick={enterFocusMode}
               onExitFocus={exitFocusMode}
             />
@@ -146,9 +244,66 @@ export default function GrandTreeApp() {
             onMove={handleMove}
             onStatus={setAiStatus}
             debugMode={debugMode}
+            sceneState={sceneState}
           />
         </Suspense>
       ) : null}
+
+      {/* 虚拟方向键 - 桌面端 FOCUS 模式显示 */}
+      {sceneState === 'FOCUS' && !isMobile && (
+        <>
+          <button
+            onClick={prevPhoto}
+            style={{
+              position: 'absolute',
+              left: '40px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 20,
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              border: '1px solid rgba(255, 215, 0, 0.5)',
+              color: '#FFD700',
+              fontSize: '24px',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="上一张"
+          >
+            &lt;
+          </button>
+          <button
+            onClick={nextPhoto}
+            style={{
+              position: 'absolute',
+              right: '40px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 20,
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              border: '1px solid rgba(255, 215, 0, 0.5)',
+              color: '#FFD700',
+              fontSize: '24px',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="下一张"
+          >
+            &gt;
+          </button>
+        </>
+      )}
 
       {/* UI - Top Bar */}
       <div

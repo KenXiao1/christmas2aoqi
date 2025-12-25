@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { DrawingUtils, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
 
-import type { SceneState } from './config';
+import { type SceneState, TOTAL_NUMBERED_PHOTOS } from './config';
+
+type GestureType = SceneState | 'NEXT_PHOTO' | 'PREV_PHOTO' | 'ENTER_FOCUS';
 
 type GestureControllerProps = {
-  onGesture: (state: SceneState) => void;
+  onGesture: (gesture: GestureType, nearestTextureIndex?: number) => void;
   onMove: (speed: number) => void;
   onStatus: (status: string) => void;
   debugMode: boolean;
+  sceneState: SceneState;
 };
 
 export default function GestureController({
@@ -15,14 +18,22 @@ export default function GestureController({
   onMove,
   onStatus,
   debugMode,
+  sceneState,
 }: GestureControllerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const debugModeRef = useRef(debugMode);
+  const sceneStateRef = useRef(sceneState);
+  const lastGestureRef = useRef<string | null>(null);
+  const gestureDebounceRef = useRef<number>(0);
 
   useEffect(() => {
     debugModeRef.current = debugMode;
   }, [debugMode]);
+
+  useEffect(() => {
+    sceneStateRef.current = sceneState;
+  }, [sceneState]);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,10 +131,42 @@ export default function GestureController({
         if (results.gestures.length > 0) {
           const name = results.gestures[0][0].categoryName;
           const score = results.gestures[0][0].score;
-          if (score > 0.4) {
-            if (name === 'Open_Palm') onGesture('CHAOS');
-            if (name === 'Closed_Fist') onGesture('FORMED');
-            if (shouldDebug) onStatus(`DETECTED: ${name}`);
+          const now = Date.now();
+
+          if (score > 0.5) {
+            // 防抖：同一手势 500ms 内不重复触发
+            const shouldTrigger = name !== lastGestureRef.current || now - gestureDebounceRef.current > 500;
+
+            if (shouldTrigger) {
+              lastGestureRef.current = name;
+              gestureDebounceRef.current = now;
+
+              const currentState = sceneStateRef.current;
+
+              if (name === 'Open_Palm') {
+                onGesture('CHAOS');
+              } else if (name === 'Closed_Fist') {
+                onGesture('FORMED');
+              } else if (name === 'Pointing_Up') {
+                // ☝️ 进入聚焦 - 选择随机照片（因为无法获取相机位置）
+                if (currentState !== 'FOCUS') {
+                  const randomIndex = Math.floor(Math.random() * TOTAL_NUMBERED_PHOTOS);
+                  onGesture('ENTER_FOCUS', randomIndex);
+                }
+              } else if (name === 'Thumb_Up') {
+                // 👍 上一张
+                if (currentState === 'FOCUS') {
+                  onGesture('PREV_PHOTO');
+                }
+              } else if (name === 'Thumb_Down') {
+                // 👎 下一张
+                if (currentState === 'FOCUS') {
+                  onGesture('NEXT_PHOTO');
+                }
+              }
+
+              if (shouldDebug) onStatus(`DETECTED: ${name}`);
+            }
           }
 
           if (results.landmarks.length > 0) {
@@ -131,6 +174,7 @@ export default function GestureController({
             onMove(Math.abs(speed) > 0.01 ? speed : 0);
           }
         } else {
+          lastGestureRef.current = null;
           onMove(0);
           if (shouldDebug) onStatus('AI READY: NO HAND');
         }

@@ -115,10 +115,14 @@ const Foliage = ({ state }: { state: SceneState }) => {
 // --- Component: Photo Ornaments (Double-Sided Polaroid) ---
 const PhotoOrnaments = ({
   state,
+  focusedTextureIndex,
   onPhotoClick,
+  onRegisterPosition,
 }: {
   state: SceneState;
-  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+  focusedTextureIndex: number;
+  onPhotoClick: (textureIndex: number) => void;
+  onRegisterPosition: (textureIndex: number, position: THREE.Vector3) => void;
 }) => {
   const textures = useTexture(CONFIG.photos.body);
   const count = CONFIG.counts.ornaments;
@@ -195,9 +199,23 @@ const PhotoOrnaments = ({
 
     groupRef.current.children.forEach((group, i) => {
       const objData = data[i];
+      const isThisFocused = isFocus && objData.textureIndex === focusedTextureIndex;
 
-      // FOCUS 模式下不做位置动画
-      if (!isFocus) {
+      // FOCUS 模式下，非聚焦的照片淡出/隐藏
+      if (isFocus) {
+        const targetScale = isThisFocused ? objData.scale : 0;
+        const currentScale = group.scale.x;
+        const newScale = MathUtils.lerp(currentScale, targetScale, delta * 3);
+        group.scale.setScalar(newScale);
+      } else {
+        // 非 FOCUS 模式恢复原始缩放
+        const currentScale = group.scale.x;
+        const newScale = MathUtils.lerp(currentScale, objData.scale, delta * 3);
+        group.scale.setScalar(newScale);
+      }
+
+      // 位置动画
+      if (!isThisFocused) {
         const target = isFormed ? objData.targetPos : objData.chaosPos;
         objData.currentPos.lerp(target, delta * (isFormed ? 0.8 * objData.weight : 0.5));
         group.position.copy(objData.currentPos);
@@ -228,17 +246,49 @@ const PhotoOrnaments = ({
     });
   });
 
-  // 点击处理
+  // 点击处理 - 传递 textureIndex
   const handleClick = useCallback(
-    (index: number, event: ThreeEvent<MouseEvent>) => {
+    (textureIndex: number, event: ThreeEvent<MouseEvent>) => {
       event.stopPropagation();
-      const position = data[index].currentPos.clone();
-      // 添加 group 的 Y 偏移 (-6)
-      position.y -= 6;
-      onPhotoClick(index, position);
+      onPhotoClick(textureIndex);
     },
-    [data, onPhotoClick]
+    [onPhotoClick]
   );
+
+  // 获取当前聚焦照片的位置（供相机使用）
+  const getFocusedPosition = useCallback(() => {
+    if (focusedTextureIndex < 0) return null;
+    // 找到第一个匹配的 textureIndex 的照片
+    const matchingData = data.find(d => d.textureIndex === focusedTextureIndex);
+    if (!matchingData) return null;
+    const pos = matchingData.currentPos.clone();
+    pos.y -= 6; // 添加 group 的 Y 偏移
+    return pos;
+  }, [focusedTextureIndex, data]);
+
+  // 注册所有照片位置，以便相机能找到聚焦照片
+  useEffect(() => {
+    // 注册所有照片位置（每个 textureIndex 取第一个匹配的）
+    const registered = new Set<number>();
+    data.forEach(d => {
+      if (!registered.has(d.textureIndex)) {
+        const pos = d.currentPos.clone();
+        pos.y -= 6;
+        onRegisterPosition(d.textureIndex, pos);
+        registered.add(d.textureIndex);
+      }
+    });
+  }, [data, onRegisterPosition]);
+
+  // 聚焦时更新位置
+  useEffect(() => {
+    if (state === 'FOCUS' && focusedTextureIndex >= 0) {
+      const pos = getFocusedPosition();
+      if (pos) {
+        onRegisterPosition(focusedTextureIndex, pos);
+      }
+    }
+  }, [state, focusedTextureIndex, getFocusedPosition, onRegisterPosition]);
 
   return (
     <group ref={groupRef}>
@@ -251,7 +301,7 @@ const PhotoOrnaments = ({
             key={i}
             scale={[obj.scale, obj.scale, obj.scale]}
             rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
-            onClick={(e) => handleClick(i, e)}
+            onClick={(e) => handleClick(obj.textureIndex, e)}
             onPointerOver={() => (document.body.style.cursor = 'pointer')}
             onPointerOut={() => (document.body.style.cursor = 'default')}
           >
@@ -565,45 +615,56 @@ const TopStar = ({ state }: { state: SceneState }) => {
 const Experience = ({
   sceneState,
   rotationSpeed,
-  focusedPhotoIndex,
-  focusedPhotoPosition,
+  focusedTextureIndex,
   onPhotoClick,
   onExitFocus,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
-  focusedPhotoIndex: number;
-  focusedPhotoPosition: THREE.Vector3 | null;
-  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+  focusedTextureIndex: number;
+  onPhotoClick: (textureIndex: number) => void;
   onExitFocus: () => void;
 }) => {
   const controlsRef = useRef<any>(null);
   const prevFocusIndex = useRef(-1);
+  const photoPositionsRef = useRef<Map<number, THREE.Vector3>>(new Map());
+
+  // 注册照片位置的回调（由 PhotoOrnaments 调用）
+  const registerPhotoPosition = useCallback((textureIndex: number, position: THREE.Vector3) => {
+    photoPositionsRef.current.set(textureIndex, position.clone());
+  }, []);
 
   // 聚焦相机动画
   useEffect(() => {
     if (!controlsRef.current) return;
 
-    if (sceneState === 'FOCUS' && focusedPhotoPosition && focusedPhotoIndex !== prevFocusIndex.current) {
-      // 计算相机位置：照片正前方，距离照片 5 单位
-      const cameraDistance = 5;
-      const direction = focusedPhotoPosition.clone().normalize();
-      const cameraPos = focusedPhotoPosition.clone().add(direction.multiplyScalar(cameraDistance));
+    if (sceneState === 'FOCUS' && focusedTextureIndex >= 0 && focusedTextureIndex !== prevFocusIndex.current) {
+      // 延迟获取位置，等待照片动画完成
+      const timer = setTimeout(() => {
+        const pos = photoPositionsRef.current.get(focusedTextureIndex);
+        if (pos) {
+          // 计算相机位置：照片正前方，距离照片 5 单位
+          const cameraDistance = 5;
+          const direction = pos.clone().normalize();
+          const cameraPos = pos.clone().add(direction.multiplyScalar(cameraDistance));
 
-      // 平滑移动相机到照片前方
-      controlsRef.current.setLookAt(
-        cameraPos.x, cameraPos.y, cameraPos.z,
-        focusedPhotoPosition.x, focusedPhotoPosition.y, focusedPhotoPosition.z,
-        true // enableTransition
-      );
-      prevFocusIndex.current = focusedPhotoIndex;
+          // 平滑移动相机到照片前方
+          controlsRef.current.setLookAt(
+            cameraPos.x, cameraPos.y, cameraPos.z,
+            pos.x, pos.y, pos.z,
+            true // enableTransition
+          );
+        }
+      }, 50);
+      prevFocusIndex.current = focusedTextureIndex;
+      return () => clearTimeout(timer);
     }
 
     // 退出 FOCUS 模式时重置
     if (sceneState !== 'FOCUS') {
       prevFocusIndex.current = -1;
     }
-  }, [sceneState, focusedPhotoIndex, focusedPhotoPosition]);
+  }, [sceneState, focusedTextureIndex]);
 
   // 非聚焦模式的旋转控制
   useFrame(() => {
@@ -645,7 +706,12 @@ const Experience = ({
         <FairyLights state={sceneState} />
         <TopStar state={sceneState} />
         <Suspense fallback={null}>
-          <PhotoOrnaments state={sceneState} onPhotoClick={onPhotoClick} />
+          <PhotoOrnaments
+            state={sceneState}
+            focusedTextureIndex={focusedTextureIndex}
+            onPhotoClick={onPhotoClick}
+            onRegisterPosition={registerPhotoPosition}
+          />
         </Suspense>
         <Sparkles
           count={600}
@@ -674,16 +740,14 @@ const Experience = ({
 export default function TreeCanvas({
   sceneState,
   rotationSpeed,
-  focusedPhotoIndex,
-  focusedPhotoPosition,
+  focusedTextureIndex,
   onPhotoClick,
   onExitFocus,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
-  focusedPhotoIndex: number;
-  focusedPhotoPosition: THREE.Vector3 | null;
-  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+  focusedTextureIndex: number;
+  onPhotoClick: (textureIndex: number) => void;
   onExitFocus: () => void;
 }) {
   return (
@@ -694,8 +758,7 @@ export default function TreeCanvas({
       <Experience
         sceneState={sceneState}
         rotationSpeed={rotationSpeed}
-        focusedPhotoIndex={focusedPhotoIndex}
-        focusedPhotoPosition={focusedPhotoPosition}
+        focusedTextureIndex={focusedTextureIndex}
         onPhotoClick={onPhotoClick}
         onExitFocus={onExitFocus}
       />
