@@ -23,6 +23,9 @@ export default function GrandTreeApp() {
   const [previousState, setPreviousState] = useState<'CHAOS' | 'FORMED'>('FORMED');
   const [isMobile, setIsMobile] = useState(false);
 
+  // 引导弹窗状态
+  const [showGuide, setShowGuide] = useState(false);
+
   // 滑动手势相关
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -37,6 +40,21 @@ export default function GrandTreeApp() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 首次访问显示引导弹窗
+  useEffect(() => {
+    const hasSeenGuide = localStorage.getItem('christmas-tree-guide-seen');
+    if (!hasSeenGuide) {
+      // 延迟显示，等待场景加载
+      const timer = setTimeout(() => setShowGuide(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const closeGuide = useCallback(() => {
+    setShowGuide(false);
+    localStorage.setItem('christmas-tree-guide-seen', 'true');
   }, []);
 
   // 进入聚焦模式
@@ -425,6 +443,111 @@ export default function GrandTreeApp() {
           </button>
         </div>
       </div>
+
+      {/* 引导弹窗 */}
+      {showGuide && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={closeGuide}
+        >
+          <div
+            style={{
+              backgroundColor: 'rgba(0, 20, 10, 0.95)',
+              border: '1px solid rgba(255, 215, 0, 0.5)',
+              borderRadius: '12px',
+              padding: isMobile ? '24px 20px' : '32px 40px',
+              maxWidth: isMobile ? '90%' : '480px',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 0 40px rgba(255, 215, 0, 0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              style={{
+                color: '#FFD700',
+                fontFamily: 'serif',
+                fontSize: isMobile ? '20px' : '24px',
+                marginBottom: '20px',
+                textAlign: 'center',
+                letterSpacing: '2px',
+              }}
+            >
+              {isMobile ? '操作指南' : '操作指南'}
+            </h2>
+
+            {isMobile ? (
+              // 移动端内容
+              <div style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: '14px', lineHeight: 1.8 }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>基础操作</div>
+                  <div>点击右上角按钮切换圣诞树状态</div>
+                  <div>点击照片进入聚焦浏览</div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>照片浏览</div>
+                  <div>← 左滑：下一张</div>
+                  <div>→ 右滑：上一张</div>
+                  <div>↓ 下滑：退出聚焦</div>
+                </div>
+                <div>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>手势控制（可选）</div>
+                  <div>开启后用手势控制圣诞树</div>
+                </div>
+              </div>
+            ) : (
+              // 桌面端内容
+              <div style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: '14px', lineHeight: 1.8 }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>基础操作</div>
+                  <div>点击右上角按钮切换圣诞树状态</div>
+                  <div>点击照片进入聚焦浏览</div>
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>照片浏览</div>
+                  <div>← → 方向键：切换照片</div>
+                  <div>ESC：退出聚焦</div>
+                  <div>或点击左右两侧的导航按钮</div>
+                </div>
+                <div>
+                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>手势控制（可选）</div>
+                  <div>✋ 张开手掌：散开粒子</div>
+                  <div>✊ 握拳：聚合成树</div>
+                  <div>☝️ 指向上：进入聚焦</div>
+                  <div>👍 / 👎：切换照片</div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={closeGuide}
+              style={{
+                marginTop: '24px',
+                width: '100%',
+                padding: '12px 24px',
+                backgroundColor: '#FFD700',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#000',
+                fontFamily: 'sans-serif',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              开始体验
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
