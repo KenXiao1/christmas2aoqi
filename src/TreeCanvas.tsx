@@ -503,19 +503,23 @@ const TopStar = ({ state }: { state: SceneState }) => {
     const outerRadius = 2;
     const innerRadius = 0.8;
     const spikes = 5;
-    const step = Math.PI / spikes;
 
-    shape.moveTo(0, outerRadius);
-    for (let i = 0; i < spikes; i++) {
-      shape.lineTo(
-        Math.cos(step * (i * 2 + 1)) * innerRadius,
-        Math.sin(step * (i * 2 + 1)) * innerRadius,
-      );
-      shape.lineTo(
-        Math.cos(step * (i * 2 + 2)) * outerRadius,
-        Math.sin(step * (i * 2 + 2)) * outerRadius,
-      );
+    // For a 5-pointed star: 10 vertices alternating outer/inner
+    // Start from top (PI/2) and go clockwise
+    for (let i = 0; i < spikes * 2; i++) {
+      const angle = Math.PI / 2 - (i * Math.PI) / spikes;
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+
+      if (i === 0) {
+        shape.moveTo(x, y);
+      } else {
+        shape.lineTo(x, y);
+      }
     }
+    shape.closePath();
+
     return new THREE.ExtrudeGeometry(shape, {
       depth: 0.5,
       bevelEnabled: true,
