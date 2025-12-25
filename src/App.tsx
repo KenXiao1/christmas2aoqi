@@ -1,10 +1,13 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import * as THREE from 'three';
 
-import { CONFIG, type SceneState } from './config';
+import { type SceneState } from './config';
 
 const TreeCanvas = lazy(() => import('./TreeCanvas'));
 const GestureController = lazy(() => import('./GestureController'));
+
+// 默认自动旋转速度（弧度/帧）
+const AUTO_ROTATION_SPEED = 0.002;
 
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<SceneState>('CHAOS');
@@ -13,6 +16,7 @@ export default function GrandTreeApp() {
   const [debugMode, setDebugMode] = useState(false);
   const [gestureEnabled, setGestureEnabled] = useState(false);
   const [showScene, setShowScene] = useState(false);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
 
   // 新增：聚焦相关状态
   const [focusedPhotoIndex, setFocusedPhotoIndex] = useState<number>(-1);
@@ -65,7 +69,14 @@ export default function GrandTreeApp() {
   const handleMove = useCallback((speed: number) => {
     if (sceneState === 'FOCUS') return;
     setRotationSpeed(speed);
+    // 当手势控制有输入时，标记用户正在交互
+    setIsUserInteracting(speed !== 0);
   }, [sceneState]);
+
+  // 计算最终旋转速度：FOCUS 模式不旋转，用户交互时使用手势速度，否则自动旋转
+  const effectiveRotationSpeed = sceneState === 'FOCUS'
+    ? 0
+    : (gestureEnabled && isUserInteracting ? rotationSpeed : AUTO_ROTATION_SPEED);
 
   useEffect(() => {
     const enable = () => setShowScene(true);
@@ -90,6 +101,7 @@ export default function GrandTreeApp() {
       setAiStatus('AI: OFF');
       setRotationSpeed(0);
       setDebugMode(false);
+      setIsUserInteracting(false);
     }
   }, [gestureEnabled]);
 
@@ -117,7 +129,7 @@ export default function GrandTreeApp() {
           <Suspense fallback={null}>
             <TreeCanvas
               sceneState={sceneState}
-              rotationSpeed={rotationSpeed}
+              rotationSpeed={effectiveRotationSpeed}
               focusedPhotoIndex={focusedPhotoIndex}
               focusedPhotoPosition={focusedPhotoPosition}
               onPhotoClick={enterFocusMode}
