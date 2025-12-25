@@ -221,7 +221,17 @@ const PhotoOrnaments = ({
         group.position.copy(objData.currentPos);
       }
 
-      if (isFormed && !isFocus) {
+      if (isThisFocused) {
+        // FOCUS 模式：聚焦的照片绕Y轴旋转面向相机
+        const camera = stateObj.camera;
+        const dx = camera.position.x - group.position.x;
+        const dz = camera.position.z - group.position.z;
+        const targetRotationY = Math.atan2(dx, dz);
+        group.rotation.y = MathUtils.lerp(group.rotation.y, targetRotationY, delta * 5);
+        // 保持X和Z旋转为0，让照片保持水平
+        group.rotation.x = MathUtils.lerp(group.rotation.x, 0, delta * 5);
+        group.rotation.z = MathUtils.lerp(group.rotation.z, 0, delta * 5);
+      } else if (isFormed && !isFocus) {
         // FORMED 模式：面向树心 + wobble
         const targetLookPos = new THREE.Vector3(
           group.position.x * 2,
@@ -242,7 +252,6 @@ const PhotoOrnaments = ({
         group.rotation.y += delta * objData.rotationSpeed.y;
         group.rotation.z += delta * objData.rotationSpeed.z;
       }
-      // FOCUS 模式：不做任何动画，保持静止
     });
   });
 
@@ -643,12 +652,15 @@ const Experience = ({
       const timer = setTimeout(() => {
         const pos = photoPositionsRef.current.get(focusedTextureIndex);
         if (pos) {
-          // 计算相机位置：照片正前方，距离照片 5 单位
-          const cameraDistance = 5;
-          const direction = pos.clone().normalize();
-          const cameraPos = pos.clone().add(direction.multiplyScalar(cameraDistance));
+          // 计算照片正面朝向的方向
+          // 照片在FORMED状态下 lookAt (x*2, localY+0.5, z*2)
+          // 所以正面方向是 (x, 0.5, z) 的归一化向量
+          const faceDirection = new THREE.Vector3(pos.x, 0.5, pos.z).normalize();
 
-          // 平滑移动相机到照片前方
+          const cameraDistance = 5;
+          const cameraPos = pos.clone().add(faceDirection.multiplyScalar(cameraDistance));
+
+          // 平滑移动相机到照片正前方
           controlsRef.current.setLookAt(
             cameraPos.x, cameraPos.y, cameraPos.z,
             pos.x, pos.y, pos.z,
