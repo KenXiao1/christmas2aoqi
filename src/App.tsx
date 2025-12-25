@@ -138,147 +138,125 @@ export default function GrandTreeApp() {
         </Suspense>
       ) : null}
 
-      {/* UI - Stats */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '30px',
-          left: '40px',
-          color: '#888',
-          zIndex: 10,
-          fontFamily: 'sans-serif',
-          userSelect: 'none',
-        }}
-      >
-        <div style={{ marginBottom: '15px' }}>
-          <p
-            style={{
-              fontSize: '10px',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              marginBottom: '4px',
-            }}
-          >
-            Memories
-          </p>
-          <p style={{ fontSize: '24px', color: '#FFD700', fontWeight: 'bold', margin: 0 }}>
-            {CONFIG.counts.ornaments.toLocaleString()}{' '}
-            <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>
-              POLAROIDS
-            </span>
-          </p>
-        </div>
-        <div>
-          <p
-            style={{
-              fontSize: '10px',
-              letterSpacing: '2px',
-              textTransform: 'uppercase',
-              marginBottom: '4px',
-            }}
-          >
-            Foliage
-          </p>
-          <p style={{ fontSize: '24px', color: '#004225', fontWeight: 'bold', margin: 0 }}>
-            {(CONFIG.counts.foliage / 1000).toFixed(0)}K{' '}
-            <span style={{ fontSize: '10px', color: '#555', fontWeight: 'normal' }}>
-              EMERALD NEEDLES
-            </span>
-          </p>
-        </div>
-      </div>
-
-      {/* UI - Buttons */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '30px',
-          right: '40px',
-          zIndex: 10,
-          display: 'flex',
-          gap: '10px',
-        }}
-      >
-        <button
-          onClick={() => setGestureEnabled((v) => !v)}
-          style={{
-            padding: '12px 15px',
-            backgroundColor: gestureEnabled ? '#FFD700' : 'rgba(0,0,0,0.5)',
-            border: '1px solid #FFD700',
-            color: gestureEnabled ? '#000' : '#FFD700',
-            fontFamily: 'sans-serif',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          {gestureEnabled ? '手势控制 开' : '手势控制 关'}
-        </button>
-        {/* DEBUG 按钮 - 移动端隐藏 */}
-        {!isMobile && (
-          <button
-            onClick={() => setDebugMode((v) => !v)}
-            disabled={!gestureEnabled}
-            style={{
-              padding: '12px 15px',
-              backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)',
-              border: '1px solid #FFD700',
-              color: debugMode ? '#000' : '#FFD700',
-              fontFamily: 'sans-serif',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              cursor: gestureEnabled ? 'pointer' : 'not-allowed',
-              opacity: gestureEnabled ? 1 : 0.5,
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            {debugMode ? '隐藏调试' : '调试'}
-          </button>
-        )}
-        <button
-          onClick={() => {
-            if (sceneState === 'FOCUS') {
-              exitFocusMode();
-            } else {
-              setSceneState((s) => (s === 'CHAOS' ? 'FORMED' : 'CHAOS'));
-            }
-          }}
-          style={{
-            padding: '12px 30px',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            border: '1px solid rgba(255, 215, 0, 0.5)',
-            color: '#FFD700',
-            fontFamily: 'serif',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            letterSpacing: '3px',
-            textTransform: 'uppercase',
-            cursor: 'pointer',
-            backdropFilter: 'blur(4px)',
-          }}
-        >
-          {sceneState === 'FOCUS' ? '退出聚焦' : sceneState === 'CHAOS' ? '聚合成树' : '散开'}
-        </button>
-      </div>
-
-      {/* UI - AI Status */}
+      {/* UI - Top Bar */}
       <div
         style={{
           position: 'absolute',
           top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          color: aiStatus.includes('ERROR') ? '#FF0000' : 'rgba(255, 215, 0, 0.4)',
-          fontSize: '10px',
-          letterSpacing: '2px',
+          left: '40px',
+          right: '40px',
           zIndex: 10,
-          background: 'rgba(0,0,0,0.5)',
-          padding: '4px 8px',
-          borderRadius: '4px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        {aiStatus}
+        {/* Author Credit */}
+        <div
+          style={{
+            color: '#888',
+            fontFamily: 'sans-serif',
+            fontSize: '12px',
+          }}
+        >
+          by{' '}
+          <a
+            href="https://kenxiao.netlify.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#FFD700',
+              textDecoration: 'none',
+            }}
+          >
+            Ken Xiao
+          </a>
+        </div>
+
+        {/* Buttons */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'center',
+          }}
+        >
+          {/* AI Status */}
+          <div
+            style={{
+              color: aiStatus.includes('ERROR') ? '#FF0000' : 'rgba(255, 215, 0, 0.4)',
+              fontSize: '10px',
+              letterSpacing: '2px',
+              background: 'rgba(0,0,0,0.5)',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              marginRight: '10px',
+            }}
+          >
+            {aiStatus}
+          </div>
+          <button
+            onClick={() => setGestureEnabled((v) => !v)}
+            style={{
+              padding: '12px 15px',
+              backgroundColor: gestureEnabled ? '#FFD700' : 'rgba(0,0,0,0.5)',
+              border: '1px solid #FFD700',
+              color: gestureEnabled ? '#000' : '#FFD700',
+              fontFamily: 'sans-serif',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            {gestureEnabled ? '手势控制 开' : '手势控制 关'}
+          </button>
+          {/* DEBUG 按钮 - 移动端隐藏 */}
+          {!isMobile && (
+            <button
+              onClick={() => setDebugMode((v) => !v)}
+              disabled={!gestureEnabled}
+              style={{
+                padding: '12px 15px',
+                backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)',
+                border: '1px solid #FFD700',
+                color: debugMode ? '#000' : '#FFD700',
+                fontFamily: 'sans-serif',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                cursor: gestureEnabled ? 'pointer' : 'not-allowed',
+                opacity: gestureEnabled ? 1 : 0.5,
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              {debugMode ? '隐藏调试' : '调试'}
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (sceneState === 'FOCUS') {
+                exitFocusMode();
+              } else {
+                setSceneState((s) => (s === 'CHAOS' ? 'FORMED' : 'CHAOS'));
+              }
+            }}
+            style={{
+              padding: '12px 30px',
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              border: '1px solid rgba(255, 215, 0, 0.5)',
+              color: '#FFD700',
+              fontFamily: 'serif',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              letterSpacing: '3px',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            {sceneState === 'FOCUS' ? '退出聚焦' : sceneState === 'CHAOS' ? '聚合成树' : '散开'}
+          </button>
+        </div>
       </div>
     </div>
   );
