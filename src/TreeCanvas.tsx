@@ -643,6 +643,13 @@ const Experience = ({
     photoPositionsRef.current.set(textureIndex, position.clone());
   }, []);
 
+  // 初始化相机目标点，让树聚合后在画面中央
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    // 设置相机看向树的中心位置 (0, -6, 0)
+    controlsRef.current.setLookAt(0, 8, 60, 0, -6, 0, false);
+  }, []);
+
   // 聚焦相机动画
   useEffect(() => {
     if (!controlsRef.current) return;
