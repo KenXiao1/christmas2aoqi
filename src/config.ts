@@ -1,4 +1,4 @@
-export type SceneState = 'CHAOS' | 'FORMED';
+export type SceneState = 'CHAOS' | 'FORMED' | 'FOCUS';
 
 // --- 动态生成照片列表 (1.jpg ~ 6.jpg) ---
 export const TOTAL_NUMBERED_PHOTOS = 6;

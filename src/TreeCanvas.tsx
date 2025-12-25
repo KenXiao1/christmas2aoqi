@@ -1,9 +1,10 @@
-import { Suspense, useMemo, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Canvas, extend, useFrame } from '@react-three/fiber';
+import type { ThreeEvent } from '@react-three/fiber';
 import {
+  CameraControls,
   Environment,
   Float,
-  OrbitControls,
   PerspectiveCamera,
   shaderMaterial,
   Sparkles,
@@ -83,7 +84,8 @@ const Foliage = ({ state }: { state: SceneState }) => {
   useFrame((rootState, delta) => {
     if (!materialRef.current) return;
     materialRef.current.uTime = rootState.clock.elapsedTime;
-    const targetProgress = state === 'FORMED' ? 1 : 0;
+    // FOCUS 状态视为 FORMED
+    const targetProgress = state === 'CHAOS' ? 0 : 1;
     materialRef.current.uProgress = MathUtils.damp(
       materialRef.current.uProgress,
       targetProgress,
@@ -111,7 +113,13 @@ const Foliage = ({ state }: { state: SceneState }) => {
 };
 
 // --- Component: Photo Ornaments (Double-Sided Polaroid) ---
-const PhotoOrnaments = ({ state }: { state: SceneState }) => {
+const PhotoOrnaments = ({
+  state,
+  onPhotoClick,
+}: {
+  state: SceneState;
+  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+}) => {
   const textures = useTexture(CONFIG.photos.body);
   const count = CONFIG.counts.ornaments;
   const groupRef = useRef<THREE.Group>(null);
@@ -181,17 +189,22 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
 
   useFrame((stateObj, delta) => {
     if (!groupRef.current) return;
-    const isFormed = state === 'FORMED';
+    const isFormed = state === 'FORMED' || state === 'FOCUS';
+    const isFocus = state === 'FOCUS';
     const time = stateObj.clock.elapsedTime;
 
     groupRef.current.children.forEach((group, i) => {
       const objData = data[i];
-      const target = isFormed ? objData.targetPos : objData.chaosPos;
 
-      objData.currentPos.lerp(target, delta * (isFormed ? 0.8 * objData.weight : 0.5));
-      group.position.copy(objData.currentPos);
+      // FOCUS 模式下不做位置动画
+      if (!isFocus) {
+        const target = isFormed ? objData.targetPos : objData.chaosPos;
+        objData.currentPos.lerp(target, delta * (isFormed ? 0.8 * objData.weight : 0.5));
+        group.position.copy(objData.currentPos);
+      }
 
-      if (isFormed) {
+      if (isFormed && !isFocus) {
+        // FORMED 模式：面向树心 + wobble
         const targetLookPos = new THREE.Vector3(
           group.position.x * 2,
           group.position.y + 0.5,
@@ -205,13 +218,27 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
           Math.cos(time * objData.wobbleSpeed * 0.8 + objData.wobbleOffset) * 0.05;
         group.rotation.x += wobbleX;
         group.rotation.z += wobbleZ;
-      } else {
+      } else if (!isFormed) {
+        // CHAOS 模式：自由旋转
         group.rotation.x += delta * objData.rotationSpeed.x;
         group.rotation.y += delta * objData.rotationSpeed.y;
         group.rotation.z += delta * objData.rotationSpeed.z;
       }
+      // FOCUS 模式：不做任何动画，保持静止
     });
   });
+
+  // 点击处理
+  const handleClick = useCallback(
+    (index: number, event: ThreeEvent<MouseEvent>) => {
+      event.stopPropagation();
+      const position = data[index].currentPos.clone();
+      // 添加 group 的 Y 偏移 (-6)
+      position.y -= 6;
+      onPhotoClick(index, position);
+    },
+    [data, onPhotoClick]
+  );
 
   return (
     <group ref={groupRef}>
@@ -224,6 +251,9 @@ const PhotoOrnaments = ({ state }: { state: SceneState }) => {
             key={i}
             scale={[obj.scale, obj.scale, obj.scale]}
             rotation={state === 'CHAOS' ? obj.chaosRotation : [0, 0, 0]}
+            onClick={(e) => handleClick(i, e)}
+            onPointerOver={() => (document.body.style.cursor = 'pointer')}
+            onPointerOut={() => (document.body.style.cursor = 'default')}
           >
             {/* 正面 */}
             <group position={[0, 0, 0.015]}>
@@ -344,7 +374,8 @@ const ChristmasElements = ({ state }: { state: SceneState }) => {
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
-    const isFormed = state === 'FORMED';
+    // FOCUS 状态视为 FORMED
+    const isFormed = state === 'FORMED' || state === 'FOCUS';
     groupRef.current.children.forEach((child, i) => {
       const item = data[i];
       const target = isFormed ? item.targetPos : item.chaosPos;
@@ -430,7 +461,8 @@ const FairyLights = ({ state }: { state: SceneState }) => {
 
   useFrame((stateObj, delta) => {
     if (!groupRef.current) return;
-    const isFormed = state === 'FORMED';
+    // FOCUS 状态视为 FORMED
+    const isFormed = state === 'FORMED' || state === 'FOCUS';
     const time = stateObj.clock.elapsedTime;
 
     groupRef.current.children.forEach((child, i) => {
@@ -508,7 +540,8 @@ const TopStar = ({ state }: { state: SceneState }) => {
   useFrame((_, delta) => {
     if (!groupRef.current) return;
     groupRef.current.rotation.y += delta * 0.5;
-    const targetScale = state === 'FORMED' ? 1 : 0;
+    // FOCUS 状态视为 FORMED
+    const targetScale = state === 'CHAOS' ? 0 : 1;
     groupRef.current.scale.lerp(
       new THREE.Vector3(targetScale, targetScale, targetScale),
       delta * 3,
@@ -528,30 +561,68 @@ const TopStar = ({ state }: { state: SceneState }) => {
 const Experience = ({
   sceneState,
   rotationSpeed,
+  focusedPhotoIndex,
+  focusedPhotoPosition,
+  onPhotoClick,
+  onExitFocus,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
+  focusedPhotoIndex: number;
+  focusedPhotoPosition: THREE.Vector3 | null;
+  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+  onExitFocus: () => void;
 }) => {
   const controlsRef = useRef<any>(null);
+  const prevFocusIndex = useRef(-1);
+
+  // 聚焦相机动画
+  useEffect(() => {
+    if (!controlsRef.current) return;
+
+    if (sceneState === 'FOCUS' && focusedPhotoPosition && focusedPhotoIndex !== prevFocusIndex.current) {
+      // 计算相机位置：照片正前方，距离照片 5 单位
+      const cameraDistance = 5;
+      const direction = focusedPhotoPosition.clone().normalize();
+      const cameraPos = focusedPhotoPosition.clone().add(direction.multiplyScalar(cameraDistance));
+
+      // 平滑移动相机到照片前方
+      controlsRef.current.setLookAt(
+        cameraPos.x, cameraPos.y, cameraPos.z,
+        focusedPhotoPosition.x, focusedPhotoPosition.y, focusedPhotoPosition.z,
+        true // enableTransition
+      );
+      prevFocusIndex.current = focusedPhotoIndex;
+    }
+
+    // 退出 FOCUS 模式时重置
+    if (sceneState !== 'FOCUS') {
+      prevFocusIndex.current = -1;
+    }
+  }, [sceneState, focusedPhotoIndex, focusedPhotoPosition]);
+
+  // 非聚焦模式的旋转控制
   useFrame(() => {
     if (!controlsRef.current) return;
-    controlsRef.current.setAzimuthalAngle(
-      controlsRef.current.getAzimuthalAngle() + rotationSpeed,
-    );
-    controlsRef.current.update();
+    // FOCUS 模式下不旋转
+    if (sceneState === 'FOCUS' || rotationSpeed === 0) return;
+    controlsRef.current.rotate(rotationSpeed, 0, false);
   });
+
+  // 点击空白区域退出聚焦
+  const handleMissedClick = useCallback(() => {
+    if (sceneState === 'FOCUS') {
+      onExitFocus();
+    }
+  }, [sceneState, onExitFocus]);
 
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 8, 60]} fov={45} />
-      <OrbitControls
+      <CameraControls
         ref={controlsRef}
-        enablePan={false}
-        enableZoom={true}
-        minDistance={30}
-        maxDistance={120}
-        autoRotate={rotationSpeed === 0 && sceneState === 'FORMED'}
-        autoRotateSpeed={0.3}
+        minDistance={sceneState === 'FOCUS' ? 3 : 30}
+        maxDistance={sceneState === 'FOCUS' ? 15 : 120}
         maxPolarAngle={Math.PI / 1.7}
       />
 
@@ -564,13 +635,13 @@ const Experience = ({
       <pointLight position={[-30, 10, -30]} intensity={50} color={CONFIG.colors.gold} />
       <pointLight position={[0, -20, 10]} intensity={30} color="#ffffff" />
 
-      <group position={[0, -6, 0]}>
+      <group position={[0, -6, 0]} onPointerMissed={handleMissedClick}>
         <Foliage state={sceneState} />
         <ChristmasElements state={sceneState} />
         <FairyLights state={sceneState} />
         <TopStar state={sceneState} />
         <Suspense fallback={null}>
-          <PhotoOrnaments state={sceneState} />
+          <PhotoOrnaments state={sceneState} onPhotoClick={onPhotoClick} />
         </Suspense>
         <Sparkles
           count={600}
@@ -599,16 +670,31 @@ const Experience = ({
 export default function TreeCanvas({
   sceneState,
   rotationSpeed,
+  focusedPhotoIndex,
+  focusedPhotoPosition,
+  onPhotoClick,
+  onExitFocus,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
+  focusedPhotoIndex: number;
+  focusedPhotoPosition: THREE.Vector3 | null;
+  onPhotoClick: (index: number, position: THREE.Vector3) => void;
+  onExitFocus: () => void;
 }) {
   return (
     <Canvas
       dpr={[1, 1.5]}
       gl={{ toneMapping: THREE.ReinhardToneMapping, powerPreference: 'high-performance' }}
     >
-      <Experience sceneState={sceneState} rotationSpeed={rotationSpeed} />
+      <Experience
+        sceneState={sceneState}
+        rotationSpeed={rotationSpeed}
+        focusedPhotoIndex={focusedPhotoIndex}
+        focusedPhotoPosition={focusedPhotoPosition}
+        onPhotoClick={onPhotoClick}
+        onExitFocus={onExitFocus}
+      />
     </Canvas>
   );
 }

@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import * as THREE from 'three';
 
 import { CONFIG, type SceneState } from './config';
 
@@ -12,6 +13,59 @@ export default function GrandTreeApp() {
   const [debugMode, setDebugMode] = useState(false);
   const [gestureEnabled, setGestureEnabled] = useState(false);
   const [showScene, setShowScene] = useState(false);
+
+  // 新增：聚焦相关状态
+  const [focusedPhotoIndex, setFocusedPhotoIndex] = useState<number>(-1);
+  const [focusedPhotoPosition, setFocusedPhotoPosition] = useState<THREE.Vector3 | null>(null);
+  const [previousState, setPreviousState] = useState<'CHAOS' | 'FORMED'>('FORMED');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 移动端检测
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        navigator.maxTouchPoints > 0 ||
+        window.matchMedia('(max-width: 768px)').matches
+      );
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // 进入聚焦模式
+  const enterFocusMode = useCallback((photoIndex: number, position: THREE.Vector3) => {
+    if (sceneState === 'FOCUS') return;
+    setPreviousState(sceneState as 'CHAOS' | 'FORMED');
+    setFocusedPhotoIndex(photoIndex);
+    setFocusedPhotoPosition(position);
+    setSceneState('FOCUS');
+    setRotationSpeed(0);
+  }, [sceneState]);
+
+  // 退出聚焦模式
+  const exitFocusMode = useCallback(() => {
+    if (sceneState !== 'FOCUS') return;
+    setSceneState(previousState);
+    setFocusedPhotoIndex(-1);
+    setFocusedPhotoPosition(null);
+  }, [sceneState, previousState]);
+
+  // 手势回调 - FOCUS 模式下特殊处理
+  const handleGesture = useCallback((gesture: SceneState) => {
+    if (sceneState === 'FOCUS') {
+      // FOCUS 模式下：Closed_Fist (FORMED) 退出聚焦，忽略 Open_Palm
+      if (gesture === 'FORMED') exitFocusMode();
+      return;
+    }
+    setSceneState(gesture);
+  }, [sceneState, exitFocusMode]);
+
+  // 手势移动回调 - FOCUS 模式下忽略
+  const handleMove = useCallback((speed: number) => {
+    if (sceneState === 'FOCUS') return;
+    setRotationSpeed(speed);
+  }, [sceneState]);
 
   useEffect(() => {
     const enable = () => setShowScene(true);
@@ -61,7 +115,14 @@ export default function GrandTreeApp() {
       >
         {showScene ? (
           <Suspense fallback={null}>
-            <TreeCanvas sceneState={sceneState} rotationSpeed={rotationSpeed} />
+            <TreeCanvas
+              sceneState={sceneState}
+              rotationSpeed={rotationSpeed}
+              focusedPhotoIndex={focusedPhotoIndex}
+              focusedPhotoPosition={focusedPhotoPosition}
+              onPhotoClick={enterFocusMode}
+              onExitFocus={exitFocusMode}
+            />
           </Suspense>
         ) : null}
       </div>
@@ -69,8 +130,8 @@ export default function GrandTreeApp() {
       {gestureEnabled ? (
         <Suspense fallback={null}>
           <GestureController
-            onGesture={setSceneState}
-            onMove={setRotationSpeed}
+            onGesture={handleGesture}
+            onMove={handleMove}
             onStatus={setAiStatus}
             debugMode={debugMode}
           />
@@ -152,28 +213,37 @@ export default function GrandTreeApp() {
             backdropFilter: 'blur(4px)',
           }}
         >
-          {gestureEnabled ? 'AI ON' : 'AI OFF'}
+          {gestureEnabled ? '手势控制 开' : '手势控制 关'}
         </button>
+        {/* DEBUG 按钮 - 移动端隐藏 */}
+        {!isMobile && (
+          <button
+            onClick={() => setDebugMode((v) => !v)}
+            disabled={!gestureEnabled}
+            style={{
+              padding: '12px 15px',
+              backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)',
+              border: '1px solid #FFD700',
+              color: debugMode ? '#000' : '#FFD700',
+              fontFamily: 'sans-serif',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              cursor: gestureEnabled ? 'pointer' : 'not-allowed',
+              opacity: gestureEnabled ? 1 : 0.5,
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            {debugMode ? '隐藏调试' : '调试'}
+          </button>
+        )}
         <button
-          onClick={() => setDebugMode((v) => !v)}
-          disabled={!gestureEnabled}
-          style={{
-            padding: '12px 15px',
-            backgroundColor: debugMode ? '#FFD700' : 'rgba(0,0,0,0.5)',
-            border: '1px solid #FFD700',
-            color: debugMode ? '#000' : '#FFD700',
-            fontFamily: 'sans-serif',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            cursor: gestureEnabled ? 'pointer' : 'not-allowed',
-            opacity: gestureEnabled ? 1 : 0.5,
-            backdropFilter: 'blur(4px)',
+          onClick={() => {
+            if (sceneState === 'FOCUS') {
+              exitFocusMode();
+            } else {
+              setSceneState((s) => (s === 'CHAOS' ? 'FORMED' : 'CHAOS'));
+            }
           }}
-        >
-          {debugMode ? 'HIDE DEBUG' : '🛠 DEBUG'}
-        </button>
-        <button
-          onClick={() => setSceneState((s) => (s === 'CHAOS' ? 'FORMED' : 'CHAOS'))}
           style={{
             padding: '12px 30px',
             backgroundColor: 'rgba(0,0,0,0.5)',
@@ -188,7 +258,7 @@ export default function GrandTreeApp() {
             backdropFilter: 'blur(4px)',
           }}
         >
-          {sceneState === 'CHAOS' ? 'Assemble Tree' : 'Disperse'}
+          {sceneState === 'FOCUS' ? '退出聚焦' : sceneState === 'CHAOS' ? '聚合成树' : '散开'}
         </button>
       </div>
 
