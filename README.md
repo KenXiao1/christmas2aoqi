@@ -100,7 +100,7 @@ App.tsx                    # Root: UI controls, state management
 
 ---
 
-Merry Christmas!
+Merry Christmas Eve!
 <br>
 🌕🌕🌕🌕🌕🌕🌕🌕🌕🌕🌕
 <br>
