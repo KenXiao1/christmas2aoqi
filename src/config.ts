@@ -1,5 +1,14 @@
 export type SceneState = 'CHAOS' | 'FORMED' | 'FOCUS';
 
+// --- 手势控制配置 ---
+export const GESTURE_CONFIG = {
+  confidenceThreshold: 0.65,  // 置信度阈值（减少误识别）
+  rotationDeadZone: 0.03,     // 旋转死区（减少颤抖）
+  rotationSensitivity: 0.15,  // X轴旋转灵敏度
+  pitchSensitivity: 0.1,      // Y轴俯仰灵敏度
+  pitchDeadZone: 0.03,        // 俯仰死区
+};
+
 // --- 动态生成照片列表 (1.jpg ~ 6.jpg) ---
 export const TOTAL_NUMBERED_PHOTOS = 6;
 // 6.jpg 是竖幅照片，其他都是正方形

@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Suspense, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { Canvas, extend, useFrame } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import {
@@ -624,15 +624,21 @@ const TopStar = ({ state }: { state: SceneState }) => {
 const Experience = ({
   sceneState,
   rotationSpeed,
+  pitchSpeed,
   focusedTextureIndex,
   onPhotoClick,
   onExitFocus,
+  onCameraRef,
+  onPhotoPositionsRef,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
+  pitchSpeed: number;
   focusedTextureIndex: number;
   onPhotoClick: (textureIndex: number) => void;
   onExitFocus: () => void;
+  onCameraRef: (ref: any) => void;
+  onPhotoPositionsRef: (ref: Map<number, THREE.Vector3>) => void;
 }) => {
   const controlsRef = useRef<any>(null);
   const prevFocusIndex = useRef(-1);
@@ -648,7 +654,14 @@ const Experience = ({
     if (!controlsRef.current) return;
     // 设置相机看向树的中心位置 (0, -6, 0)
     controlsRef.current.setLookAt(0, 8, 60, 0, -6, 0, false);
-  }, []);
+    // 传递 controlsRef 给父组件
+    onCameraRef(controlsRef.current);
+  }, [onCameraRef]);
+
+  // 传递 photoPositionsRef 给父组件
+  useEffect(() => {
+    onPhotoPositionsRef(photoPositionsRef.current);
+  }, [onPhotoPositionsRef]);
 
   // 聚焦相机动画
   useEffect(() => {
@@ -685,12 +698,19 @@ const Experience = ({
     }
   }, [sceneState, focusedTextureIndex]);
 
-  // 非聚焦模式的旋转控制
+  // 非聚焦模式的旋转和俯仰控制
   useFrame(() => {
     if (!controlsRef.current) return;
     // FOCUS 模式下不旋转
-    if (sceneState === 'FOCUS' || rotationSpeed === 0) return;
-    controlsRef.current.rotate(rotationSpeed, 0, false);
+    if (sceneState === 'FOCUS') return;
+    // 水平旋转
+    if (rotationSpeed !== 0) {
+      controlsRef.current.rotate(rotationSpeed, 0, false);
+    }
+    // 垂直俯仰
+    if (pitchSpeed !== 0) {
+      controlsRef.current.rotate(0, pitchSpeed, false);
+    }
   });
 
   // 点击空白区域退出聚焦
@@ -756,19 +776,63 @@ const Experience = ({
   );
 };
 
-export default function TreeCanvas({
-  sceneState,
-  rotationSpeed,
-  focusedTextureIndex,
-  onPhotoClick,
-  onExitFocus,
-}: {
+export interface TreeCanvasHandle {
+  getNearestPhotoIndex: () => number;
+}
+
+const TreeCanvas = forwardRef<TreeCanvasHandle, {
   sceneState: SceneState;
   rotationSpeed: number;
+  pitchSpeed: number;
   focusedTextureIndex: number;
   onPhotoClick: (textureIndex: number) => void;
   onExitFocus: () => void;
-}) {
+}>(function TreeCanvas({
+  sceneState,
+  rotationSpeed,
+  pitchSpeed,
+  focusedTextureIndex,
+  onPhotoClick,
+  onExitFocus,
+}, ref) {
+  const cameraControlsRef = useRef<any>(null);
+  const photoPositionsRef = useRef<Map<number, THREE.Vector3>>(new Map());
+
+  // 暴露 getNearestPhotoIndex 方法给父组件
+  useImperativeHandle(ref, () => ({
+    getNearestPhotoIndex: () => {
+      if (!cameraControlsRef.current || photoPositionsRef.current.size === 0) {
+        return 0;
+      }
+
+      // 获取相机位置
+      const cameraPosition = new THREE.Vector3();
+      cameraControlsRef.current.getPosition(cameraPosition);
+
+      // 找到最近的照片
+      let nearestIndex = 0;
+      let minDistance = Infinity;
+
+      photoPositionsRef.current.forEach((pos, index) => {
+        const distance = cameraPosition.distanceTo(pos);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = index;
+        }
+      });
+
+      return nearestIndex;
+    }
+  }), []);
+
+  const handleCameraRef = useCallback((controlsRef: any) => {
+    cameraControlsRef.current = controlsRef;
+  }, []);
+
+  const handlePhotoPositionsRef = useCallback((positions: Map<number, THREE.Vector3>) => {
+    photoPositionsRef.current = positions;
+  }, []);
+
   return (
     <Canvas
       dpr={[1, 1.5]}
@@ -777,11 +841,16 @@ export default function TreeCanvas({
       <Experience
         sceneState={sceneState}
         rotationSpeed={rotationSpeed}
+        pitchSpeed={pitchSpeed}
         focusedTextureIndex={focusedTextureIndex}
         onPhotoClick={onPhotoClick}
         onExitFocus={onExitFocus}
+        onCameraRef={handleCameraRef}
+        onPhotoPositionsRef={handlePhotoPositionsRef}
       />
     </Canvas>
   );
-}
+});
+
+export default TreeCanvas;
 

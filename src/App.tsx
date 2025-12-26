@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 
 import { type SceneState, TOTAL_NUMBERED_PHOTOS } from './config';
+import type { TreeCanvasHandle } from './TreeCanvas';
 
 const TreeCanvas = lazy(() => import('./TreeCanvas'));
 const GestureController = lazy(() => import('./GestureController'));
@@ -11,17 +12,22 @@ const AUTO_ROTATION_SPEED = 0.002;
 export default function GrandTreeApp() {
   const [sceneState, setSceneState] = useState<SceneState>('CHAOS');
   const [rotationSpeed, setRotationSpeed] = useState(0);
+  const [pitchSpeed, setPitchSpeed] = useState(0);
   const [aiStatus, setAiStatus] = useState('AI: OFF');
   const [debugMode, setDebugMode] = useState(false);
   const [gestureEnabled, setGestureEnabled] = useState(false);
   const [showScene, setShowScene] = useState(false);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const [showGestureHint, setShowGestureHint] = useState(false);
 
   // 聚焦相关状态 - 使用 textureIndex (0-5) 而非 ornamentIndex (0-11)
   const [focusedTextureIndex, setFocusedTextureIndex] = useState<number>(-1);
   const [startTextureIndex, setStartTextureIndex] = useState<number>(-1); // 循环起点
   const [previousState, setPreviousState] = useState<'CHAOS' | 'FORMED'>('FORMED');
   const [isMobile, setIsMobile] = useState(false);
+
+  // TreeCanvas ref 用于获取最近照片索引
+  const treeCanvasRef = useRef<TreeCanvasHandle | null>(null);
 
   // 引导弹窗状态
   const [showGuide, setShowGuide] = useState(false);
@@ -122,7 +128,7 @@ export default function GrandTreeApp() {
 
     if (sceneState === 'FOCUS') {
       // FOCUS 模式下的手势处理
-      if (gesture === 'FORMED') exitFocusMode(); // 👊 握拳退出
+      if (gesture === 'FORMED' || gesture === 'CHAOS') exitFocusMode(); // 👊 握拳或 🖐️ 张开手掌都可退出
       if (gesture === 'NEXT_PHOTO') nextPhoto(); // 👎 下一张
       if (gesture === 'PREV_PHOTO') prevPhoto(); // 👍 上一张
       return;
@@ -142,10 +148,26 @@ export default function GrandTreeApp() {
     setIsUserInteracting(speed !== 0);
   }, [sceneState]);
 
+  // 手势俯仰回调 - FOCUS 模式下忽略
+  const handlePitch = useCallback((speed: number) => {
+    if (sceneState === 'FOCUS') return;
+    setPitchSpeed(speed);
+  }, [sceneState]);
+
   // 计算最终旋转速度：FOCUS 模式不旋转，用户交互时使用手势速度，否则自动旋转
   const effectiveRotationSpeed = sceneState === 'FOCUS'
     ? 0
     : (gestureEnabled && isUserInteracting ? rotationSpeed : AUTO_ROTATION_SPEED);
+
+  // 计算最终俯仰速度：FOCUS 模式不俯仰
+  const effectivePitchSpeed = sceneState === 'FOCUS'
+    ? 0
+    : (gestureEnabled ? pitchSpeed : 0);
+
+  // 获取最近照片索引的回调（供 GestureController 使用）
+  const getNearestPhotoIndex = useCallback(() => {
+    return treeCanvasRef.current?.getNearestPhotoIndex() ?? 0;
+  }, []);
 
   // 键盘事件处理
   useEffect(() => {
@@ -216,12 +238,20 @@ export default function GrandTreeApp() {
   }, []);
 
   useEffect(() => {
-    if (gestureEnabled) setAiStatus('INITIALIZING...');
-    else {
+    if (gestureEnabled) {
+      setAiStatus('INITIALIZING...');
+      // 首次启用时显示手势提示
+      setShowGestureHint(true);
+      // 5秒后自动隐藏
+      const timer = setTimeout(() => setShowGestureHint(false), 5000);
+      return () => clearTimeout(timer);
+    } else {
       setAiStatus('AI: OFF');
       setRotationSpeed(0);
+      setPitchSpeed(0);
       setDebugMode(false);
       setIsUserInteracting(false);
+      setShowGestureHint(false);
     }
   }, [gestureEnabled]);
 
@@ -250,8 +280,10 @@ export default function GrandTreeApp() {
         {showScene ? (
           <Suspense fallback={null}>
             <TreeCanvas
+              ref={treeCanvasRef}
               sceneState={sceneState}
               rotationSpeed={effectiveRotationSpeed}
+              pitchSpeed={effectivePitchSpeed}
               focusedTextureIndex={focusedTextureIndex}
               onPhotoClick={enterFocusMode}
               onExitFocus={exitFocusMode}
@@ -265,9 +297,11 @@ export default function GrandTreeApp() {
           <GestureController
             onGesture={handleGesture}
             onMove={handleMove}
+            onPitch={handlePitch}
             onStatus={setAiStatus}
             debugMode={debugMode}
             sceneState={sceneState}
+            getNearestPhotoIndex={getNearestPhotoIndex}
           />
         </Suspense>
       ) : null}
@@ -472,6 +506,67 @@ export default function GrandTreeApp() {
           </button>
         </div>
       </div>
+
+      {/* 手势提示 UI - 启用手势控制时显示 */}
+      {showGestureHint && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '100px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            backgroundColor: 'rgba(0, 20, 10, 0.9)',
+            border: '1px solid rgba(255, 215, 0, 0.5)',
+            borderRadius: '12px',
+            padding: '16px 24px',
+            backdropFilter: 'blur(10px)',
+            boxShadow: '0 0 20px rgba(255, 215, 0, 0.2)',
+            animation: 'fadeIn 0.3s ease-out',
+          }}
+          onClick={() => setShowGestureHint(false)}
+        >
+          <div
+            style={{
+              color: '#FFD700',
+              fontFamily: 'sans-serif',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              marginBottom: '12px',
+              textAlign: 'center',
+            }}
+          >
+            手势控制
+          </div>
+          <div
+            style={{
+              color: '#fff',
+              fontFamily: 'sans-serif',
+              fontSize: '13px',
+              lineHeight: 1.8,
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr',
+              gap: '4px 12px',
+            }}
+          >
+            <span>🖐️</span><span>张开手掌 → 散开粒子</span>
+            <span>✊</span><span>握拳 → 聚合成树</span>
+            <span>☝️</span><span>竖食指 → 查看照片</span>
+            <span>👍👎</span><span>大拇指 → 切换照片</span>
+          </div>
+          <div
+            style={{
+              color: 'rgba(255, 255, 255, 0.5)',
+              fontFamily: 'sans-serif',
+              fontSize: '11px',
+              marginTop: '10px',
+              textAlign: 'center',
+            }}
+          >
+            点击关闭
+          </div>
+        </div>
+      )}
 
       {/* 引导弹窗 */}
       {showGuide && (

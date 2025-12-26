@@ -1,24 +1,28 @@
 import { useEffect, useRef } from 'react';
 import { DrawingUtils, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
 
-import { type SceneState, TOTAL_NUMBERED_PHOTOS } from './config';
+import { type SceneState, TOTAL_NUMBERED_PHOTOS, GESTURE_CONFIG } from './config';
 
 type GestureType = SceneState | 'NEXT_PHOTO' | 'PREV_PHOTO' | 'ENTER_FOCUS';
 
 type GestureControllerProps = {
   onGesture: (gesture: GestureType, nearestTextureIndex?: number) => void;
   onMove: (speed: number) => void;
+  onPitch: (speed: number) => void;
   onStatus: (status: string) => void;
   debugMode: boolean;
   sceneState: SceneState;
+  getNearestPhotoIndex?: () => number;
 };
 
 export default function GestureController({
   onGesture,
   onMove,
+  onPitch,
   onStatus,
   debugMode,
   sceneState,
+  getNearestPhotoIndex,
 }: GestureControllerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -133,9 +137,12 @@ export default function GestureController({
           const score = results.gestures[0][0].score;
           const now = Date.now();
 
-          if (score > 0.5) {
-            // 防抖：同一手势 500ms 内不重复触发
-            const shouldTrigger = name !== lastGestureRef.current || now - gestureDebounceRef.current > 500;
+          if (score > GESTURE_CONFIG.confidenceThreshold) {
+            // 对于 Thumb_Up/Down，只在手势变化时触发（不允许保持手势重复触发）
+            const isPhotoSwitchGesture = name === 'Thumb_Up' || name === 'Thumb_Down';
+            const shouldTrigger = isPhotoSwitchGesture
+              ? name !== lastGestureRef.current  // 只允许手势变化时触发
+              : (name !== lastGestureRef.current || now - gestureDebounceRef.current > 500);
 
             if (shouldTrigger) {
               lastGestureRef.current = name;
@@ -148,18 +155,18 @@ export default function GestureController({
               } else if (name === 'Closed_Fist') {
                 onGesture('FORMED');
               } else if (name === 'Pointing_Up') {
-                // ☝️ 进入聚焦 - 选择随机照片（因为无法获取相机位置）
+                // ☝️ 进入聚焦 - 选择最近的照片
                 if (currentState !== 'FOCUS') {
-                  const randomIndex = Math.floor(Math.random() * TOTAL_NUMBERED_PHOTOS);
-                  onGesture('ENTER_FOCUS', randomIndex);
+                  const nearestIndex = getNearestPhotoIndex?.() ?? Math.floor(Math.random() * TOTAL_NUMBERED_PHOTOS);
+                  onGesture('ENTER_FOCUS', nearestIndex);
                 }
               } else if (name === 'Thumb_Up') {
-                // 👍 上一张
+                // 👍 上一张（仅在 FOCUS 模式，且只在手势变化时触发）
                 if (currentState === 'FOCUS') {
                   onGesture('PREV_PHOTO');
                 }
               } else if (name === 'Thumb_Down') {
-                // 👎 下一张
+                // 👎 下一张（仅在 FOCUS 模式，且只在手势变化时触发）
                 if (currentState === 'FOCUS') {
                   onGesture('NEXT_PHOTO');
                 }
@@ -170,12 +177,21 @@ export default function GestureController({
           }
 
           if (results.landmarks.length > 0) {
-            const speed = (0.5 - results.landmarks[0][0].x) * 0.15;
-            onMove(Math.abs(speed) > 0.01 ? speed : 0);
+            const handX = results.landmarks[0][0].x;
+            const handY = results.landmarks[0][0].y;
+
+            // X轴控制旋转
+            const rotationSpeed = (0.5 - handX) * GESTURE_CONFIG.rotationSensitivity;
+            onMove(Math.abs(rotationSpeed) > GESTURE_CONFIG.rotationDeadZone ? rotationSpeed : 0);
+
+            // Y轴控制俯仰
+            const pitchSpeed = (0.5 - handY) * GESTURE_CONFIG.pitchSensitivity;
+            onPitch(Math.abs(pitchSpeed) > GESTURE_CONFIG.pitchDeadZone ? pitchSpeed : 0);
           }
         } else {
           lastGestureRef.current = null;
           onMove(0);
+          onPitch(0);
           if (shouldDebug) onStatus('AI READY: NO HAND');
         }
       }
@@ -188,7 +204,7 @@ export default function GestureController({
       isMounted = false;
       cleanup();
     };
-  }, [onGesture, onMove, onStatus]);
+  }, [onGesture, onMove, onPitch, onStatus, getNearestPhotoIndex]);
 
   return (
     <>
