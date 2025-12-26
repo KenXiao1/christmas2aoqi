@@ -663,24 +663,22 @@ const Experience = ({
     onPhotoPositionsRef(photoPositionsRef.current);
   }, [onPhotoPositionsRef]);
 
-  // 聚焦相机动画
+  const isResettingRef = useRef(false);
+
+  // 相机动画处理：聚焦和重置
   useEffect(() => {
     if (!controlsRef.current) return;
 
     if (sceneState === 'FOCUS' && focusedTextureIndex >= 0 && focusedTextureIndex !== prevFocusIndex.current) {
-      // 延迟获取位置，等待照片动画完成
+      // 聚焦模式：平滑移动到照片正前方
       const timer = setTimeout(() => {
         const pos = photoPositionsRef.current.get(focusedTextureIndex);
         if (pos) {
           // 计算照片正面朝向的方向
-          // 照片在FORMED状态下 lookAt (x*2, localY+0.5, z*2)
-          // 所以正面方向是 (x, 0.5, z) 的归一化向量
           const faceDirection = new THREE.Vector3(pos.x, 0.5, pos.z).normalize();
-
           const cameraDistance = 5;
           const cameraPos = pos.clone().add(faceDirection.multiplyScalar(cameraDistance));
 
-          // 平滑移动相机到照片正前方
           controlsRef.current.setLookAt(
             cameraPos.x, cameraPos.y, cameraPos.z,
             pos.x, pos.y, pos.z,
@@ -692,17 +690,26 @@ const Experience = ({
       return () => clearTimeout(timer);
     }
 
-    // 退出 FOCUS 模式时重置
-    if (sceneState !== 'FOCUS') {
+    // 当切换到 FORMED 状态（聚合为树）时，重置相机到正视全貌
+    if (sceneState === 'FORMED') {
+      isResettingRef.current = true;
+      // 0, 8, 60 是相机位置，0, -6, 0 是树的中心看向点
+      controlsRef.current.setLookAt(0, 8, 60, 0, -6, 0, true).then(() => {
+        isResettingRef.current = false;
+      });
       prevFocusIndex.current = -1;
+    } else if (sceneState !== 'FOCUS') {
+      prevFocusIndex.current = -1;
+      isResettingRef.current = false;
     }
   }, [sceneState, focusedTextureIndex]);
 
   // 非聚焦模式的旋转和俯仰控制
   useFrame(() => {
     if (!controlsRef.current) return;
-    // FOCUS 模式下不旋转
-    if (sceneState === 'FOCUS') return;
+    // FOCUS 模式或正在重置相机时，不处理手势旋转
+    if (sceneState === 'FOCUS' || isResettingRef.current) return;
+
     // 水平旋转
     if (rotationSpeed !== 0) {
       controlsRef.current.rotate(rotationSpeed, 0, false);
@@ -727,7 +734,8 @@ const Experience = ({
         ref={controlsRef}
         minDistance={sceneState === 'FOCUS' ? 3 : 30}
         maxDistance={sceneState === 'FOCUS' ? 15 : 120}
-        maxPolarAngle={Math.PI / 1.7}
+        minPolarAngle={Math.PI / 4} // 限制最小俯角，防止变成完全的俯视图
+        maxPolarAngle={Math.PI / 1.5} // 限制最大仰角，防止从正下方看
       />
 
       <color attach="background" args={['#000300']} />

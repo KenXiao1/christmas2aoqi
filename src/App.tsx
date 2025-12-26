@@ -22,7 +22,6 @@ export default function GrandTreeApp() {
 
   // 聚焦相关状态 - 使用 textureIndex (0-5) 而非 ornamentIndex (0-11)
   const [focusedTextureIndex, setFocusedTextureIndex] = useState<number>(-1);
-  const [startTextureIndex, setStartTextureIndex] = useState<number>(-1); // 循环起点
   const [previousState, setPreviousState] = useState<'CHAOS' | 'FORMED'>('FORMED');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -73,12 +72,10 @@ export default function GrandTreeApp() {
     if (sceneState === 'FOCUS') {
       // 已在 FOCUS 模式，直接切换到新照片
       setFocusedTextureIndex(textureIndex);
-      setStartTextureIndex(textureIndex);
       return;
     }
     setPreviousState(sceneState as 'CHAOS' | 'FORMED');
     setFocusedTextureIndex(textureIndex);
-    setStartTextureIndex(textureIndex);
     setSceneState('FOCUS');
     setRotationSpeed(0);
   }, [sceneState]);
@@ -88,36 +85,32 @@ export default function GrandTreeApp() {
     if (sceneState !== 'FOCUS') return;
     setSceneState(previousState);
     setFocusedTextureIndex(-1);
-    setStartTextureIndex(-1);
   }, [sceneState, previousState]);
 
-  // 下一张照片
+  // 下一张照片 - 纯循环
   const nextPhoto = useCallback(() => {
     if (sceneState !== 'FOCUS' || focusedTextureIndex === -1) return;
-    const next = (focusedTextureIndex + 1) % TOTAL_NUMBERED_PHOTOS;
-    // 循环回到起点时退出
-    if (next === startTextureIndex) {
-      exitFocusMode();
-      return;
-    }
-    setFocusedTextureIndex(next);
-  }, [sceneState, focusedTextureIndex, startTextureIndex, exitFocusMode]);
+    setFocusedTextureIndex((prev) => (prev + 1) % TOTAL_NUMBERED_PHOTOS);
+  }, [sceneState, focusedTextureIndex]);
 
-  // 上一张照片
+  // 上一张照片 - 纯循环
   const prevPhoto = useCallback(() => {
     if (sceneState !== 'FOCUS' || focusedTextureIndex === -1) return;
-    const prev = (focusedTextureIndex - 1 + TOTAL_NUMBERED_PHOTOS) % TOTAL_NUMBERED_PHOTOS;
-    // 循环回到起点时退出
-    if (prev === startTextureIndex) {
-      exitFocusMode();
-      return;
-    }
-    setFocusedTextureIndex(prev);
-  }, [sceneState, focusedTextureIndex, startTextureIndex, exitFocusMode]);
+    setFocusedTextureIndex((prev) => (prev - 1 + TOTAL_NUMBERED_PHOTOS) % TOTAL_NUMBERED_PHOTOS);
+  }, [sceneState, focusedTextureIndex]);
 
   // 手势回调 - 支持更多手势
   type GestureType = SceneState | 'NEXT_PHOTO' | 'PREV_PHOTO' | 'ENTER_FOCUS';
   const handleGesture = useCallback((gesture: GestureType, nearestTextureIndex?: number) => {
+    // 无论当前在什么模式，如果是直接的粒子状态指令，都直接切换
+    if (gesture === 'CHAOS' || gesture === 'FORMED') {
+      if (sceneState === 'FOCUS') {
+        setFocusedTextureIndex(-1);
+      }
+      setSceneState(gesture);
+      return;
+    }
+
     if (gesture === 'ENTER_FOCUS') {
       // ☝️ Pointing_Up 进入聚焦
       if (sceneState !== 'FOCUS' && nearestTextureIndex !== undefined && nearestTextureIndex >= 0) {
@@ -128,17 +121,11 @@ export default function GrandTreeApp() {
 
     if (sceneState === 'FOCUS') {
       // FOCUS 模式下的手势处理
-      if (gesture === 'FORMED' || gesture === 'CHAOS') exitFocusMode(); // 👊 握拳或 🖐️ 张开手掌都可退出
       if (gesture === 'NEXT_PHOTO') nextPhoto(); // 👎 下一张
       if (gesture === 'PREV_PHOTO') prevPhoto(); // 👍 上一张
       return;
     }
-
-    // 非 FOCUS 模式
-    if (gesture === 'CHAOS' || gesture === 'FORMED') {
-      setSceneState(gesture);
-    }
-  }, [sceneState, enterFocusMode, exitFocusMode, nextPhoto, prevPhoto]);
+  }, [sceneState, enterFocusMode, nextPhoto, prevPhoto]);
 
   // 手势移动回调 - FOCUS 模式下忽略
   const handleMove = useCallback((speed: number) => {
@@ -495,10 +482,6 @@ export default function GrandTreeApp() {
               color: '#FFD700',
               fontFamily: 'serif',
               fontSize: '14px',
-              fontWeight: 'bold',
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              cursor: 'pointer',
               backdropFilter: 'blur(4px)',
             }}
           >
@@ -506,6 +489,7 @@ export default function GrandTreeApp() {
           </button>
         </div>
       </div>
+
 
       {/* 手势提示 UI - 启用手势控制时显示 */}
       {showGestureHint && (
