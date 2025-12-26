@@ -268,6 +268,7 @@ export default function GrandTreeApp() {
           <Suspense fallback={null}>
             <TreeCanvas
               ref={treeCanvasRef}
+              isMobile={isMobile}
               sceneState={sceneState}
               rotationSpeed={effectiveRotationSpeed}
               pitchSpeed={effectivePitchSpeed}

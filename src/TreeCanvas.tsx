@@ -1,10 +1,20 @@
-import { Suspense, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import {
+  Suspense,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Canvas, extend, useFrame } from '@react-three/fiber';
 import type { ThreeEvent } from '@react-three/fiber';
 import {
   CameraControls,
   Environment,
   Float,
+  PerformanceMonitor,
   PerspectiveCamera,
   shaderMaterial,
   Sparkles,
@@ -56,10 +66,9 @@ const getTreePosition = () => {
 };
 
 // --- Component: Foliage ---
-const Foliage = ({ state }: { state: SceneState }) => {
+const Foliage = ({ state, count }: { state: SceneState; count: number }) => {
   const materialRef = useRef<any>(null);
   const { positions, targetPositions, randoms } = useMemo(() => {
-    const count = CONFIG.counts.foliage;
     const positions = new Float32Array(count * 3);
     const targetPositions = new Float32Array(count * 3);
     const randoms = new Float32Array(count);
@@ -79,7 +88,7 @@ const Foliage = ({ state }: { state: SceneState }) => {
       randoms[i] = Math.random();
     }
     return { positions, targetPositions, randoms };
-  }, []);
+  }, [count]);
 
   useFrame((rootState, delta) => {
     if (!materialRef.current) return;
@@ -118,15 +127,17 @@ const PhotoOrnaments = ({
   focusedTextureIndex,
   onPhotoClick,
   onRegisterPosition,
+  count,
 }: {
   state: SceneState;
   focusedTextureIndex: number;
   onPhotoClick: (textureIndex: number) => void;
   onRegisterPosition: (textureIndex: number, position: THREE.Vector3) => void;
+  count: number;
 }) => {
   const textures = useTexture(CONFIG.photos.body);
-  const count = CONFIG.counts.ornaments;
   const groupRef = useRef<THREE.Group>(null);
+  const tmpLookAt = useMemo(() => new THREE.Vector3(), []);
 
   // 正方形照片几何体
   const squarePhotoGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), []);
@@ -233,12 +244,12 @@ const PhotoOrnaments = ({
         group.rotation.z = MathUtils.lerp(group.rotation.z, 0, delta * 5);
       } else if (isFormed && !isFocus) {
         // FORMED 模式：面向树心 + wobble
-        const targetLookPos = new THREE.Vector3(
+        tmpLookAt.set(
           group.position.x * 2,
           group.position.y + 0.5,
           group.position.z * 2,
         );
-        group.lookAt(targetLookPos);
+        group.lookAt(tmpLookAt);
 
         const wobbleX =
           Math.sin(time * objData.wobbleSpeed + objData.wobbleOffset) * 0.05;
@@ -366,8 +377,7 @@ const PhotoOrnaments = ({
 };
 
 // --- Component: Christmas Elements ---
-const ChristmasElements = ({ state }: { state: SceneState }) => {
-  const count = CONFIG.counts.elements;
+const ChristmasElements = ({ state, count }: { state: SceneState; count: number }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   const boxGeometry = useMemo(() => new THREE.BoxGeometry(0.8, 0.8, 0.8), []);
@@ -491,8 +501,7 @@ const ChristmasElements = ({ state }: { state: SceneState }) => {
 };
 
 // --- Component: Fairy Lights ---
-const FairyLights = ({ state }: { state: SceneState }) => {
-  const count = CONFIG.counts.lights;
+const FairyLights = ({ state, count }: { state: SceneState; count: number }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   const geometry = useMemo(() => new THREE.SphereGeometry(0.15, 8, 8), []);
@@ -554,8 +563,9 @@ const FairyLights = ({ state }: { state: SceneState }) => {
 };
 
 // --- Component: Top Star ---
-const TopStar = ({ state }: { state: SceneState }) => {
+const TopStar = ({ state, emissiveIntensity }: { state: SceneState; emissiveIntensity: number }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const targetScaleVec = useMemo(() => new THREE.Vector3(), []);
 
   const starGeometry = useMemo(() => {
     const shape = new THREE.Shape();
@@ -593,11 +603,11 @@ const TopStar = ({ state }: { state: SceneState }) => {
       new THREE.MeshStandardMaterial({
         color: CONFIG.colors.gold,
         emissive: CONFIG.colors.gold,
-        emissiveIntensity: 2,
+        emissiveIntensity,
         roughness: 0.1,
         metalness: 1.0,
       }),
-    [],
+    [emissiveIntensity],
   );
 
   useFrame((_, delta) => {
@@ -605,10 +615,8 @@ const TopStar = ({ state }: { state: SceneState }) => {
     groupRef.current.rotation.y += delta * 0.5;
     // FOCUS 状态视为 FORMED
     const targetScale = state === 'CHAOS' ? 0 : 1;
-    groupRef.current.scale.lerp(
-      new THREE.Vector3(targetScale, targetScale, targetScale),
-      delta * 3,
-    );
+    targetScaleVec.setScalar(targetScale);
+    groupRef.current.scale.lerp(targetScaleVec, delta * 3);
   });
 
   return (
@@ -621,6 +629,27 @@ const TopStar = ({ state }: { state: SceneState }) => {
 };
 
 // --- Main Scene Experience ---
+type SceneQuality = {
+  dprMax: number;
+  foliageCount: number;
+  ornamentsCount: number;
+  elementsCount: number;
+  lightsCount: number;
+  starsCount: number;
+  sparklesCount: number;
+  enableEnvironment: boolean;
+  composerMultisampling: number;
+  bloomIntensity: number;
+  bloomRadius: number;
+  bloomMipmapBlur: boolean;
+  vignetteDarkness: number;
+  cameraResetTransition: boolean;
+  starEmissiveIntensity: number;
+  keyLightIntensity: number;
+  fillLightIntensity: number;
+  bottomLightIntensity: number;
+};
+
 const Experience = ({
   sceneState,
   rotationSpeed,
@@ -630,6 +659,8 @@ const Experience = ({
   onExitFocus,
   onCameraRef,
   onPhotoPositionsRef,
+  quality,
+  effectsEnabled,
 }: {
   sceneState: SceneState;
   rotationSpeed: number;
@@ -639,6 +670,8 @@ const Experience = ({
   onExitFocus: () => void;
   onCameraRef: (ref: any) => void;
   onPhotoPositionsRef: (ref: Map<number, THREE.Vector3>) => void;
+  quality: SceneQuality;
+  effectsEnabled: boolean;
 }) => {
   const controlsRef = useRef<any>(null);
   const prevFocusIndex = useRef(-1);
@@ -694,7 +727,7 @@ const Experience = ({
     if (sceneState === 'FORMED') {
       isResettingRef.current = true;
       // 0, 8, 60 是相机位置，0, -6, 0 是树的中心看向点
-      controlsRef.current.setLookAt(0, 8, 60, 0, -6, 0, true).then(() => {
+      controlsRef.current.setLookAt(0, 8, 60, 0, -6, 0, quality.cameraResetTransition).then(() => {
         isResettingRef.current = false;
       });
       prevFocusIndex.current = -1;
@@ -702,7 +735,7 @@ const Experience = ({
       prevFocusIndex.current = -1;
       isResettingRef.current = false;
     }
-  }, [sceneState, focusedTextureIndex]);
+  }, [sceneState, focusedTextureIndex, quality.cameraResetTransition]);
 
   // 非聚焦模式的旋转和俯仰控制
   useFrame(() => {
@@ -739,29 +772,30 @@ const Experience = ({
       />
 
       <color attach="background" args={['#000300']} />
-      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      <Environment preset="night" background={false} />
+      <Stars radius={100} depth={50} count={quality.starsCount} factor={4} saturation={0} fade speed={1} />
+      {quality.enableEnvironment ? <Environment preset="night" background={false} /> : null}
 
       <ambientLight intensity={0.4} color="#003311" />
-      <pointLight position={[30, 30, 30]} intensity={100} color={CONFIG.colors.warmLight} />
-      <pointLight position={[-30, 10, -30]} intensity={50} color={CONFIG.colors.gold} />
-      <pointLight position={[0, -20, 10]} intensity={30} color="#ffffff" />
+      <pointLight position={[30, 30, 30]} intensity={quality.keyLightIntensity} color={CONFIG.colors.warmLight} />
+      <pointLight position={[-30, 10, -30]} intensity={quality.fillLightIntensity} color={CONFIG.colors.gold} />
+      <pointLight position={[0, -20, 10]} intensity={quality.bottomLightIntensity} color="#ffffff" />
 
       <group position={[0, -6, 0]} onPointerMissed={handleMissedClick}>
-        <Foliage state={sceneState} />
-        <ChristmasElements state={sceneState} />
-        <FairyLights state={sceneState} />
-        <TopStar state={sceneState} />
+        <Foliage state={sceneState} count={quality.foliageCount} />
+        <ChristmasElements state={sceneState} count={quality.elementsCount} />
+        <FairyLights state={sceneState} count={quality.lightsCount} />
+        <TopStar state={sceneState} emissiveIntensity={quality.starEmissiveIntensity} />
         <Suspense fallback={null}>
           <PhotoOrnaments
             state={sceneState}
             focusedTextureIndex={focusedTextureIndex}
             onPhotoClick={onPhotoClick}
             onRegisterPosition={registerPhotoPosition}
+            count={quality.ornamentsCount}
           />
         </Suspense>
         <Sparkles
-          count={600}
+          count={quality.sparklesCount}
           scale={50}
           size={8}
           speed={0.4}
@@ -770,16 +804,18 @@ const Experience = ({
         />
       </group>
 
-      <EffectComposer>
-        <Bloom
-          luminanceThreshold={0.8}
-          luminanceSmoothing={0.1}
-          intensity={1.5}
-          radius={0.5}
-          mipmapBlur
-        />
-        <Vignette eskil={false} offset={0.1} darkness={1.2} />
-      </EffectComposer>
+      {effectsEnabled ? (
+        <EffectComposer multisampling={quality.composerMultisampling}>
+          <Bloom
+            luminanceThreshold={0.8}
+            luminanceSmoothing={0.1}
+            intensity={quality.bloomIntensity}
+            radius={quality.bloomRadius}
+            mipmapBlur={quality.bloomMipmapBlur}
+          />
+          <Vignette eskil={false} offset={0.1} darkness={quality.vignetteDarkness} />
+        </EffectComposer>
+      ) : null}
     </>
   );
 };
@@ -789,6 +825,7 @@ export interface TreeCanvasHandle {
 }
 
 const TreeCanvas = forwardRef<TreeCanvasHandle, {
+  isMobile?: boolean;
   sceneState: SceneState;
   rotationSpeed: number;
   pitchSpeed: number;
@@ -796,6 +833,7 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, {
   onPhotoClick: (textureIndex: number) => void;
   onExitFocus: () => void;
 }>(function TreeCanvas({
+  isMobile,
   sceneState,
   rotationSpeed,
   pitchSpeed,
@@ -805,6 +843,79 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, {
 }, ref) {
   const cameraControlsRef = useRef<any>(null);
   const photoPositionsRef = useRef<Map<number, THREE.Vector3>>(new Map());
+  const isMobileDevice =
+    isMobile ??
+    (typeof window !== 'undefined' &&
+      typeof navigator !== 'undefined' &&
+      (navigator.maxTouchPoints > 0 || window.matchMedia('(max-width: 768px)').matches));
+
+  const quality = useMemo<SceneQuality>(() => {
+    if (!isMobileDevice) {
+      return {
+        dprMax: 1.5,
+        foliageCount: CONFIG.counts.foliage,
+        ornamentsCount: CONFIG.counts.ornaments,
+        elementsCount: CONFIG.counts.elements,
+        lightsCount: CONFIG.counts.lights,
+        starsCount: 5000,
+        sparklesCount: 600,
+        enableEnvironment: true,
+        composerMultisampling: 4,
+        bloomIntensity: 1.5,
+        bloomRadius: 0.5,
+        bloomMipmapBlur: true,
+        vignetteDarkness: 1.2,
+        cameraResetTransition: true,
+        starEmissiveIntensity: 2,
+        keyLightIntensity: 100,
+        fillLightIntensity: 50,
+        bottomLightIntensity: 30,
+      };
+    }
+
+    return {
+      dprMax: 1.25,
+      foliageCount: Math.round(CONFIG.counts.foliage * 0.6),
+      ornamentsCount: CONFIG.counts.ornaments,
+      elementsCount: Math.round(CONFIG.counts.elements * 0.45),
+      lightsCount: Math.round(CONFIG.counts.lights * 0.5),
+      starsCount: 1800,
+      sparklesCount: 250,
+      enableEnvironment: false,
+      composerMultisampling: 0,
+      bloomIntensity: 0.9,
+      bloomRadius: 0.45,
+      bloomMipmapBlur: false,
+      vignetteDarkness: 1.0,
+      cameraResetTransition: false,
+      starEmissiveIntensity: 1.4,
+      keyLightIntensity: 70,
+      fillLightIntensity: 35,
+      bottomLightIntensity: 25,
+    };
+  }, [isMobileDevice]);
+
+  const clampDpr = useCallback((maxDpr: number) => {
+    const deviceDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    return Math.min(Math.max(deviceDpr, 1), maxDpr);
+  }, []);
+
+  const [dpr, setDpr] = useState(() => clampDpr(quality.dprMax));
+  const [effectsEnabled, setEffectsEnabled] = useState(true);
+  const degradedRef = useRef(false);
+
+  useEffect(() => {
+    degradedRef.current = false;
+    setEffectsEnabled(true);
+    setDpr(clampDpr(quality.dprMax));
+  }, [clampDpr, quality.dprMax]);
+
+  const handlePerformanceDecline = useCallback(() => {
+    if (!isMobileDevice || degradedRef.current) return;
+    degradedRef.current = true;
+    setDpr(1);
+    setEffectsEnabled(false);
+  }, [isMobileDevice]);
 
   // 暴露 getNearestPhotoIndex 方法给父组件
   useImperativeHandle(ref, () => ({
@@ -843,9 +954,14 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, {
 
   return (
     <Canvas
-      dpr={[1, 1.5]}
-      gl={{ toneMapping: THREE.ReinhardToneMapping, powerPreference: 'high-performance' }}
+      dpr={dpr}
+      gl={{
+        antialias: !isMobileDevice,
+        toneMapping: THREE.ReinhardToneMapping,
+        powerPreference: 'high-performance',
+      }}
     >
+      <PerformanceMonitor onDecline={handlePerformanceDecline} />
       <Experience
         sceneState={sceneState}
         rotationSpeed={rotationSpeed}
@@ -855,6 +971,8 @@ const TreeCanvas = forwardRef<TreeCanvasHandle, {
         onExitFocus={onExitFocus}
         onCameraRef={handleCameraRef}
         onPhotoPositionsRef={handlePhotoPositionsRef}
+        quality={quality}
+        effectsEnabled={effectsEnabled}
       />
     </Canvas>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { DrawingUtils, FilesetResolver, GestureRecognizer } from '@mediapipe/tasks-vision';
 
-import { type SceneState, TOTAL_NUMBERED_PHOTOS, GESTURE_CONFIG } from './config';
+import { type SceneState, GESTURE_CONFIG } from './config';
 
 type GestureType = SceneState | 'NEXT_PHOTO' | 'PREV_PHOTO' | 'ENTER_FOCUS';
 
