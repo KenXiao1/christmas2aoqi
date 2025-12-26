@@ -18,7 +18,7 @@ A high-fidelity 3D Christmas tree web application built with **React**, **Three.
 
 ## Demo
 
-**Live Demo**: [View Demo](https://christmas2aoqi.netlify.app/) *(if deployed)*
+[View Demo](https://christmas2aoqi.netlify.app/)
 
 ### Gesture Controls
 
@@ -101,3 +101,23 @@ App.tsx                    # Root: UI controls, state management
 ---
 
 Merry Christmas!
+<br>
+🌕🌕🌕🌕🌕🌕🌕🌕🌕🌕🌕
+<br>
+🌕🌕🌕🌕🌕🌕🌘🌑🌒🌕🌕 
+<br>
+🌕🌕🌕🌕🌕🌘🌑🌑🌑🌒🌕
+<br>
+🌕🌕🌕🌕🌕🌕🌘🌑🌑🌒🌕
+<br>
+🌕🌕🍎🌕🌕🌕🌗🌘🌑🌓🌕
+<br>
+🌕🌕🌑🌒🌕🌕🌘🌑🌑🌕🌕
+<br>
+🌕🌕🌘🌑🌔🌖🌑🌑🌑🌖🌕
+<br>
+🌕🌕🌕🌘🌑🌑🌑🌑🌑🌔🌕 
+<br>
+🌕🌕🌖🌑🌑🌑🌑🌑🌑🌒🌕
+<br>
+~~平安夜就要吃bad apple~~
