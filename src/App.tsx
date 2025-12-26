@@ -57,6 +57,11 @@ export default function GrandTreeApp() {
     localStorage.setItem('christmas-tree-guide-seen', 'true');
   }, []);
 
+  // 打开帮助弹窗
+  const openGuide = useCallback(() => {
+    setShowGuide(true);
+  }, []);
+
   // 进入聚焦模式
   const enterFocusMode = useCallback((textureIndex: number) => {
     if (sceneState === 'FOCUS') {
@@ -336,26 +341,50 @@ export default function GrandTreeApp() {
           alignItems: 'center',
         }}
       >
-        {/* Author Credit */}
+        {/* Author Credit & Help */}
         <div
           style={{
-            color: '#888',
-            fontFamily: 'sans-serif',
-            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
           }}
         >
-          by{' '}
-          <a
-            href="https://kenxiao.netlify.app/"
-            target="_blank"
-            rel="noopener noreferrer"
+          <div
             style={{
-              color: '#FFD700',
-              textDecoration: 'none',
+              color: '#888',
+              fontFamily: 'sans-serif',
+              fontSize: '12px',
             }}
           >
-            Ken Xiao
-          </a>
+            by{' '}
+            <a
+              href="https://kenxiao.netlify.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: '#FFD700',
+                textDecoration: 'none',
+              }}
+            >
+              Ken Xiao
+            </a>
+          </div>
+          <button
+            onClick={openGuide}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              border: '1px solid rgba(255, 215, 0, 0.4)',
+              borderRadius: '4px',
+              color: 'rgba(255, 215, 0, 0.7)',
+              fontFamily: 'sans-serif',
+              fontSize: '11px',
+              cursor: 'pointer',
+              backdropFilter: 'blur(4px)',
+            }}
+          >
+            ?
+          </button>
         </div>
 
         {/* Buttons */}
@@ -464,8 +493,9 @@ export default function GrandTreeApp() {
               backgroundColor: 'rgba(0, 20, 10, 0.95)',
               border: '1px solid rgba(255, 215, 0, 0.5)',
               borderRadius: '12px',
-              padding: isMobile ? '24px 20px' : '32px 40px',
-              maxWidth: isMobile ? '90%' : '480px',
+              padding: isMobile ? '24px 20px' : '40px 50px',
+              maxWidth: isMobile ? '90%' : '580px',
+              width: isMobile ? 'auto' : '580px',
               backdropFilter: 'blur(10px)',
               boxShadow: '0 0 40px rgba(255, 215, 0, 0.2)',
             }}
@@ -475,8 +505,8 @@ export default function GrandTreeApp() {
               style={{
                 color: '#FFD700',
                 fontFamily: 'serif',
-                fontSize: isMobile ? '20px' : '24px',
-                marginBottom: '20px',
+                fontSize: isMobile ? '20px' : '28px',
+                marginBottom: isMobile ? '20px' : '28px',
                 textAlign: 'center',
                 letterSpacing: '2px',
               }}
@@ -505,20 +535,20 @@ export default function GrandTreeApp() {
               </div>
             ) : (
               // 桌面端内容
-              <div style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: '14px', lineHeight: 1.8 }}>
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>基础操作</div>
+              <div style={{ color: '#fff', fontFamily: 'sans-serif', fontSize: '16px', lineHeight: 2 }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '10px', fontWeight: 'bold', fontSize: '17px' }}>基础操作</div>
                   <div>点击右上角按钮切换圣诞树状态</div>
                   <div>点击照片进入聚焦浏览</div>
                 </div>
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>照片浏览</div>
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ color: '#FFD700', marginBottom: '10px', fontWeight: 'bold', fontSize: '17px' }}>照片浏览</div>
                   <div>← → 方向键：切换照片</div>
                   <div>ESC：退出聚焦</div>
                   <div>或点击左右两侧的导航按钮</div>
                 </div>
                 <div>
-                  <div style={{ color: '#FFD700', marginBottom: '8px', fontWeight: 'bold' }}>手势控制（可选）</div>
+                  <div style={{ color: '#FFD700', marginBottom: '10px', fontWeight: 'bold', fontSize: '17px' }}>手势控制（可选）</div>
                   <div>✋ 张开手掌：散开粒子</div>
                   <div>✊ 握拳：聚合成树</div>
                   <div>☝️ 指向上：进入聚焦</div>
@@ -530,21 +560,44 @@ export default function GrandTreeApp() {
             <button
               onClick={closeGuide}
               style={{
-                marginTop: '24px',
+                marginTop: isMobile ? '24px' : '32px',
                 width: '100%',
-                padding: '12px 24px',
+                padding: isMobile ? '12px 24px' : '14px 28px',
                 backgroundColor: '#FFD700',
                 border: 'none',
                 borderRadius: '6px',
                 color: '#000',
                 fontFamily: 'sans-serif',
-                fontSize: '14px',
+                fontSize: isMobile ? '14px' : '16px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
               }}
             >
               开始体验
             </button>
+
+            {/* AI 生成声明 */}
+            <div
+              style={{
+                marginTop: '16px',
+                textAlign: 'center',
+                color: 'rgba(255, 255, 255, 0.4)',
+                fontSize: isMobile ? '10px' : '11px',
+                fontFamily: 'sans-serif',
+                lineHeight: 1.5,
+              }}
+            >
+              Images are generated by Google AI Model Gemini-3-pro-image-preview (Nanobanana Pro). If any content seems inappropriate, please{' '}
+              <a
+                href="https://kenxiao.netlify.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'rgba(255, 215, 0, 0.6)', textDecoration: 'none' }}
+              >
+                contact me
+              </a>
+              .
+            </div>
           </div>
         </div>
       )}
