@@ -3,6 +3,10 @@
 A high-fidelity 3D Christmas tree web application built with **React**, **Three.js (React Three Fiber)**, and **MediaPipe AI gesture recognition**.
 
 ![Preview](public/preview.png)
+<img width="3168" height="1636" alt="image" src="https://github.com/user-attachments/assets/b35d368c-538b-4573-810e-3d2ac5775dc4" />
+<img width="3103" height="1709" alt="image" src="https://github.com/user-attachments/assets/997a7a3e-af20-4cbd-920f-8f34a73ebbee" />
+
+
 
 ## Features
 
