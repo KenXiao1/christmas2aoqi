@@ -1,0 +1,68 @@
+Date : 2025-12-26 10:22:54
+Directory : d:\christmas2aoqi
+Total : 28 files,  6680 codes, 158 comments, 352 blanks, all 7190 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| JSON               |          5 |      4,070 |          4 |          9 |      4,083 |
+| TypeScript JSX     |          8 |      2,030 |        140 |        254 |      2,424 |
+| TypeScript         |          6 |        358 |         13 |         42 |        413 |
+| Markdown           |          2 |        105 |          0 |         34 |        139 |
+| PostCSS            |          2 |         73 |          1 |          9 |         83 |
+| JavaScript         |          1 |         22 |          0 |          2 |         24 |
+| HTML               |          1 |         13 |          0 |          1 |         14 |
+| JSON with Comments |          1 |          7 |          0 |          1 |          8 |
+| XML                |          2 |          2 |          0 |          0 |          2 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                    | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                       |         28 |      6,680 |        158 |        352 |      7,190 |
+| . (Files)                                               |         10 |      4,215 |          5 |         48 |      4,268 |
+| .claude                                                 |          1 |          7 |          0 |          1 |          8 |
+| public                                                  |          1 |          1 |          0 |          0 |          1 |
+| src                                                     |         16 |      2,457 |        153 |        303 |      2,913 |
+| src (Files)                                             |          7 |      1,658 |        109 |        178 |      1,945 |
+| src\assets                                              |          1 |          1 |          0 |          0 |          1 |
+| src\components                                          |          4 |        484 |         36 |         90 |        610 |
+| src\themes                                              |          4 |        314 |          8 |         35 |        357 |
++---------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                | language           | code       | comment    | blank      | total      |
++---------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| d:\christmas2aoqi\.claude\settings.local.json           | JSON               |          7 |          0 |          1 |          8 |
+| d:\christmas2aoqi\CLAUDE.md                             | Markdown           |         47 |          0 |         19 |         66 |
+| d:\christmas2aoqi\README.md                             | Markdown           |         58 |          0 |         15 |         73 |
+| d:\christmas2aoqi\eslint.config.js                      | JavaScript         |         22 |          0 |          2 |         24 |
+| d:\christmas2aoqi\index.html                            | HTML               |         13 |          0 |          1 |         14 |
+| d:\christmas2aoqi\package-lock.json                     | JSON               |      3,981 |          0 |          1 |      3,982 |
+| d:\christmas2aoqi\package.json                          | JSON               |         38 |          0 |          1 |         39 |
+| d:\christmas2aoqi\public\vite.svg                       | XML                |          1 |          0 |          0 |          1 |
+| d:\christmas2aoqi\src\App.css                           | PostCSS            |         12 |          1 |          1 |         14 |
+| d:\christmas2aoqi\src\App.tsx                           | TypeScript JSX     |        613 |         44 |         45 |        702 |
+| d:\christmas2aoqi\src\GestureController.tsx             | TypeScript JSX     |        203 |          7 |         34 |        244 |
+| d:\christmas2aoqi\src\TreeCanvas.tsx                    | TypeScript JSX     |        721 |         53 |         83 |        857 |
+| d:\christmas2aoqi\src\assets\react.svg                  | XML                |          1 |          0 |          0 |          1 |
+| d:\christmas2aoqi\src\components\CrystalDecorations.tsx | TypeScript JSX     |        164 |         10 |         26 |        200 |
+| d:\christmas2aoqi\src\components\PinkFoliage.tsx        | TypeScript JSX     |        125 |         10 |         23 |        158 |
+| d:\christmas2aoqi\src\components\PinkTopStar.tsx        | TypeScript JSX     |         89 |          7 |         15 |        111 |
+| d:\christmas2aoqi\src\components\SpiralRibbon.tsx       | TypeScript JSX     |        106 |          9 |         26 |        141 |
+| d:\christmas2aoqi\src\config.ts                         | TypeScript         |         39 |          4 |          5 |         48 |
+| d:\christmas2aoqi\src\index.css                         | PostCSS            |         61 |          0 |          8 |         69 |
+| d:\christmas2aoqi\src\main.tsx                          | TypeScript JSX     |          9 |          0 |          2 |         11 |
+| d:\christmas2aoqi\src\themes\classic.ts                 | TypeScript         |         59 |          0 |          8 |         67 |
+| d:\christmas2aoqi\src\themes\index.ts                   | TypeScript         |         80 |          3 |         11 |         94 |
+| d:\christmas2aoqi\src\themes\pink-fantasy.ts            | TypeScript         |         85 |          2 |          8 |         95 |
+| d:\christmas2aoqi\src\themes\sparkling-pink.ts          | TypeScript         |         90 |          3 |          8 |        101 |
+| d:\christmas2aoqi\tsconfig.app.json                     | JSON               |         23 |          2 |          3 |         28 |
+| d:\christmas2aoqi\tsconfig.json                         | JSON with Comments |          7 |          0 |          1 |          8 |
+| d:\christmas2aoqi\tsconfig.node.json                    | JSON               |         21 |          2 |          3 |         26 |
+| d:\christmas2aoqi\vite.config.ts                        | TypeScript         |          5 |          1 |          2 |          8 |
+| Total                                                   |                    |      6,680 |        158 |        352 |      7,190 |
++---------------------------------------------------------+--------------------+------------+------------+------------+------------+

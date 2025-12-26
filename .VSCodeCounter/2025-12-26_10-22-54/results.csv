@@ -1,0 +1,30 @@
+"filename", "language", "JSON", "XML", "TypeScript", "JSON with Comments", "TypeScript JSX", "PostCSS", "Markdown", "HTML", "JavaScript", "comment", "blank", "total"
+"d:\christmas2aoqi\.claude\settings.local.json", "JSON", 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 8
+"d:\christmas2aoqi\CLAUDE.md", "Markdown", 0, 0, 0, 0, 0, 0, 47, 0, 0, 0, 19, 66
+"d:\christmas2aoqi\README.md", "Markdown", 0, 0, 0, 0, 0, 0, 58, 0, 0, 0, 15, 73
+"d:\christmas2aoqi\eslint.config.js", "JavaScript", 0, 0, 0, 0, 0, 0, 0, 0, 22, 0, 2, 24
+"d:\christmas2aoqi\index.html", "HTML", 0, 0, 0, 0, 0, 0, 0, 13, 0, 0, 1, 14
+"d:\christmas2aoqi\package-lock.json", "JSON", 3981, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3982
+"d:\christmas2aoqi\package.json", "JSON", 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 39
+"d:\christmas2aoqi\public\vite.svg", "XML", 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"d:\christmas2aoqi\src\App.css", "PostCSS", 0, 0, 0, 0, 0, 12, 0, 0, 0, 1, 1, 14
+"d:\christmas2aoqi\src\App.tsx", "TypeScript JSX", 0, 0, 0, 0, 613, 0, 0, 0, 0, 44, 45, 702
+"d:\christmas2aoqi\src\GestureController.tsx", "TypeScript JSX", 0, 0, 0, 0, 203, 0, 0, 0, 0, 7, 34, 244
+"d:\christmas2aoqi\src\TreeCanvas.tsx", "TypeScript JSX", 0, 0, 0, 0, 721, 0, 0, 0, 0, 53, 83, 857
+"d:\christmas2aoqi\src\assets\react.svg", "XML", 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"d:\christmas2aoqi\src\components\CrystalDecorations.tsx", "TypeScript JSX", 0, 0, 0, 0, 164, 0, 0, 0, 0, 10, 26, 200
+"d:\christmas2aoqi\src\components\PinkFoliage.tsx", "TypeScript JSX", 0, 0, 0, 0, 125, 0, 0, 0, 0, 10, 23, 158
+"d:\christmas2aoqi\src\components\PinkTopStar.tsx", "TypeScript JSX", 0, 0, 0, 0, 89, 0, 0, 0, 0, 7, 15, 111
+"d:\christmas2aoqi\src\components\SpiralRibbon.tsx", "TypeScript JSX", 0, 0, 0, 0, 106, 0, 0, 0, 0, 9, 26, 141
+"d:\christmas2aoqi\src\config.ts", "TypeScript", 0, 0, 39, 0, 0, 0, 0, 0, 0, 4, 5, 48
+"d:\christmas2aoqi\src\index.css", "PostCSS", 0, 0, 0, 0, 0, 61, 0, 0, 0, 0, 8, 69
+"d:\christmas2aoqi\src\main.tsx", "TypeScript JSX", 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 2, 11
+"d:\christmas2aoqi\src\themes\classic.ts", "TypeScript", 0, 0, 59, 0, 0, 0, 0, 0, 0, 0, 8, 67
+"d:\christmas2aoqi\src\themes\index.ts", "TypeScript", 0, 0, 80, 0, 0, 0, 0, 0, 0, 3, 11, 94
+"d:\christmas2aoqi\src\themes\pink-fantasy.ts", "TypeScript", 0, 0, 85, 0, 0, 0, 0, 0, 0, 2, 8, 95
+"d:\christmas2aoqi\src\themes\sparkling-pink.ts", "TypeScript", 0, 0, 90, 0, 0, 0, 0, 0, 0, 3, 8, 101
+"d:\christmas2aoqi\tsconfig.app.json", "JSON", 23, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 28
+"d:\christmas2aoqi\tsconfig.json", "JSON with Comments", 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 1, 8
+"d:\christmas2aoqi\tsconfig.node.json", "JSON", 21, 0, 0, 0, 0, 0, 0, 0, 0, 2, 3, 26
+"d:\christmas2aoqi\vite.config.ts", "TypeScript", 0, 0, 5, 0, 0, 0, 0, 0, 0, 1, 2, 8
+"Total", "-", 4070, 2, 358, 7, 2030, 73, 105, 13, 22, 158, 352, 7190
